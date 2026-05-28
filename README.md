@@ -186,7 +186,7 @@ sentinel-review/
 
 ## Roadmap
 
-This is Phase 1 (MVP). Here's what's planned:
+This is Phase 1. Here's what's planned:
 
 **Phase 2: GitHub Actions Integration**
 - Package as a reusable GitHub Action
@@ -201,15 +201,9 @@ This is Phase 1 (MVP). Here's what's planned:
 - LLM does a second pass for things Semgrep missed
 - Caching layer so unchanged files don't get re-analyzed
 
-**Phase 4: Formal Evaluation**
-- Benchmark against OWASP Benchmark, NIST SARD, and real CVEs from GitHub Security Advisories
-- Precision, recall, F1 metrics
+**Phase 4: Self-Hosted Option**
 - Multi-model comparison (Claude vs GPT-4 vs Llama 3)
-- Cost optimization analysis
-
-**Phase 5: Self-Hosted Option**
 - Ollama/local model support for orgs that can't send code to external APIs
-- Quality comparison across models
 
 ## Security Considerations
 
