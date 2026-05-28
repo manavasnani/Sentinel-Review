@@ -1,0 +1,166 @@
+# Ground truth labels for the Sentinel Review test corpus.
+#
+# This file is the source of truth for what each test file SHOULD produce.
+# Used by benchmark scripts to compute precision, recall, and F1.
+#
+# Each entry under vulnerable_samples lists the expected findings.
+# Each entry under clean_samples should have zero findings; any finding is
+# a false positive.
+#
+# When you tighten or update the prompt, you re-run the corpus and compare
+# detection rate against this file.
+
+vulnerable_samples:
+
+  01_sql_injection.py:
+    expected_findings:
+      - cwe_id: CWE-89
+        min_severity: high
+        approximate_lines: [28, 29]
+        notes: "f-string interpolation in SELECT"
+      - cwe_id: CWE-89
+        min_severity: high
+        approximate_lines: [41, 42]
+        notes: "string concatenation in LIKE"
+
+  02_command_injection.py:
+    expected_findings:
+      - cwe_id: CWE-78
+        min_severity: high
+        approximate_lines: [27]
+        notes: "os.system with user input"
+      - cwe_id: CWE-78
+        min_severity: high
+        approximate_lines: [36, 37, 38]
+        notes: "subprocess shell=True with user input"
+
+  03_path_traversal.py:
+    expected_findings:
+      - cwe_id: CWE-22
+        min_severity: high
+        approximate_lines: [25, 26]
+        notes: "unsanitized filename joined to upload dir"
+      - cwe_id: CWE-22
+        min_severity: high
+        approximate_lines: [34, 35]
+        notes: "user log name concatenated to log dir"
+
+  04_hardcoded_credentials.py:
+    expected_findings:
+      - cwe_id: CWE-798
+        min_severity: high
+        approximate_lines: [18]
+        notes: "hardcoded database password"
+      - cwe_id: CWE-798
+        min_severity: high
+        approximate_lines: [19]
+        notes: "hardcoded API token (payment service)"
+      - cwe_id: CWE-798
+        min_severity: high
+        approximate_lines: [20]
+        notes: "hardcoded JWT signing key"
+      - cwe_id: CWE-798
+        min_severity: high
+        approximate_lines: [21, 22]
+        notes: "hardcoded AWS access key and secret key"
+      - cwe_id: CWE-798
+        min_severity: high
+        approximate_lines: [44, 46]
+        notes: "credentials embedded in database URL"
+
+  05_weak_crypto.py:
+    expected_findings:
+      - cwe_id: CWE-916
+        min_severity: high
+        approximate_lines: [22, 23]
+        notes: "MD5 for password hashing (CWE-916, not CWE-327)"
+      - cwe_id: CWE-916
+        min_severity: high
+        approximate_lines: [27, 28]
+        notes: "SHA-1 for password hashing (CWE-916, not CWE-327)"
+      - cwe_id: CWE-327
+        min_severity: high
+        approximate_lines: [33, 34]
+        notes: "AES-ECB mode"
+      - cwe_id: CWE-326
+        min_severity: high
+        approximate_lines: [38, 39]
+        notes: "DES (56-bit key)"
+      - cwe_id: CWE-329
+        min_severity: medium
+        approximate_lines: [49, 50]
+        notes: "fixed IV in CBC mode (CWE-329, not CWE-327)"
+
+  06_ssrf.py:
+    expected_findings:
+      - cwe_id: CWE-918
+        min_severity: high
+        approximate_lines: [22, 23, 24, 25, 26]
+        notes: "fetch user-supplied URL with no allowlist"
+      - cwe_id: CWE-918
+        min_severity: high
+        approximate_lines: [33, 34, 35, 36]
+        notes: "webhook proxy to user-supplied target"
+
+  07_insecure_deserialization.py:
+    expected_findings:
+      - cwe_id: CWE-502
+        min_severity: critical
+        approximate_lines: [23, 24, 25]
+        notes: "pickle.loads on attacker data = RCE"
+      - cwe_id: CWE-502
+        min_severity: high
+        approximate_lines: [33, 34, 35]
+        notes: "yaml.load without SafeLoader (high, not critical)"
+
+  08_idor.py:
+    expected_findings:
+      - cwe_id: CWE-639
+        min_severity: high
+        approximate_lines: [28, 29, 30, 31]
+        notes: "missing ownership check on get_invoice"
+      - cwe_id: CWE-285
+        min_severity: high
+        approximate_lines: [40, 41, 42, 43, 44, 45]
+        notes: "missing ownership check on delete_invoice"
+
+  09_xxe.py:
+    expected_findings:
+      - cwe_id: CWE-611
+        min_severity: high
+        approximate_lines: [25, 26, 27, 28]
+        notes: "lxml default parser allows external entities"
+      - cwe_id: CWE-611
+        min_severity: medium
+        approximate_lines: [35, 36, 37, 38]
+        notes: "xml.dom.minidom parseString without defusing"
+
+  10_open_redirect.py:
+    expected_findings:
+      - cwe_id: CWE-601
+        min_severity: medium
+        approximate_lines: [23, 24, 25, 26]
+        notes: "login redirect to user-controlled URL"
+      - cwe_id: CWE-601
+        min_severity: medium
+        approximate_lines: [31, 32, 33, 34, 35]
+        notes: "logout redirect to user-controlled URL"
+
+
+clean_samples:
+
+  01_parameterized_query.py:
+    expected_findings: []
+    notes: "All queries use parameterized APIs. Any finding is a false positive."
+
+  02_bcrypt_password.py:
+    expected_findings: []
+    notes: "All hashing uses bcrypt/argon2/PBKDF2. Any finding is a false positive."
+
+  03_safe_subprocess.py:
+    expected_findings: []
+    notes: "All subprocess calls use list args or shlex.quote. Any finding is a false positive."
+
+  04_validated_url_fetch.py:
+    expected_findings: []
+    notes: "URL is validated against allowlist before fetch. Any finding is a false positive."

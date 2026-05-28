@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinel-review"
+version = "0.1.0"
+description = "AI-powered secure code review using LLMs"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Manav Asnani" }]
+license = { text = "MIT" }
+dependencies = [
+    "anthropic>=0.40.0",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+    "typer>=0.12",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.12",
+]
+
+[project.scripts]
+sentinel = "sentinel.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]

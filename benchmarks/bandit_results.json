@@ -1,0 +1,641 @@
+{
+  "errors": [],
+  "generated_at": "2026-05-20T01:37:48Z",
+  "metrics": {
+    "_totals": {
+      "CONFIDENCE.HIGH": 15,
+      "CONFIDENCE.LOW": 4,
+      "CONFIDENCE.MEDIUM": 5,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 8,
+      "SEVERITY.LOW": 8,
+      "SEVERITY.MEDIUM": 8,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 399,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/01_sql_injection.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 1,
+      "CONFIDENCE.MEDIUM": 2,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 1,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 2,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 42,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/02_command_injection.py": {
+      "CONFIDENCE.HIGH": 5,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 2,
+      "SEVERITY.LOW": 3,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 34,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/03_path_traversal.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 33,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/04_hardcoded_credentials.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 3,
+      "CONFIDENCE.MEDIUM": 3,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 3,
+      "SEVERITY.MEDIUM": 3,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 42,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/05_weak_crypto.py": {
+      "CONFIDENCE.HIGH": 5,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 5,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 32,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/06_ssrf.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 39,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/07_insecure_deserialization.py": {
+      "CONFIDENCE.HIGH": 3,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 2,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 33,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/08_idor.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 64,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/09_xxe.py": {
+      "CONFIDENCE.HIGH": 2,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 1,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 42,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "examples/vulnerable_samples/10_open_redirect.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 38,
+      "nosec": 0,
+      "skipped_tests": 0
+    }
+  },
+  "results": [
+    {
+      "code": "31     cursor = conn.cursor()\n32     query = f\"SELECT id, name, email FROM users WHERE id = {user_id}\"\n33     cursor.execute(query)\n",
+      "col_offset": 12,
+      "end_col_offset": 69,
+      "filename": "examples/vulnerable_samples/01_sql_injection.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 89,
+        "link": "https://cwe.mitre.org/data/definitions/89.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible SQL injection vector through string-based query construction.",
+      "line_number": 32,
+      "line_range": [
+        32
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html",
+      "test_id": "B608",
+      "test_name": "hardcoded_sql_expressions"
+    },
+    {
+      "code": "43     cursor = conn.cursor()\n44     cursor.execute(\"SELECT id, name FROM users WHERE name LIKE '%\" + name + \"%'\")\n45     rows = cursor.fetchall()\n",
+      "col_offset": 19,
+      "end_col_offset": 66,
+      "filename": "examples/vulnerable_samples/01_sql_injection.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 89,
+        "link": "https://cwe.mitre.org/data/definitions/89.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible SQL injection vector through string-based query construction.",
+      "line_number": 44,
+      "line_range": [
+        44
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html",
+      "test_id": "B608",
+      "test_name": "hardcoded_sql_expressions"
+    },
+    {
+      "code": "55 if __name__ == \"__main__\":\n56     app.run(debug=True)\n",
+      "col_offset": 4,
+      "end_col_offset": 23,
+      "filename": "examples/vulnerable_samples/01_sql_injection.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 94,
+        "link": "https://cwe.mitre.org/data/definitions/94.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary code.",
+      "line_number": 56,
+      "line_range": [
+        56
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b201_flask_debug_true.html",
+      "test_id": "B201",
+      "test_name": "flask_debug_true"
+    },
+    {
+      "code": "13 import os\n14 import subprocess\n15 from flask import Flask, request\n",
+      "col_offset": 0,
+      "end_col_offset": 17,
+      "filename": "examples/vulnerable_samples/02_command_injection.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "line_number": 14,
+      "line_range": [
+        14
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "24     # Attacker can submit ?host=1.1.1.1;rm -rf /\n25     os.system(f\"ping -c 1 {host}\")\n26     return f\"Pinged {host}\"\n",
+      "col_offset": 4,
+      "end_col_offset": 34,
+      "filename": "examples/vulnerable_samples/02_command_injection.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Starting a process with a shell, possible injection detected, security issue.",
+      "line_number": 25,
+      "line_range": [
+        25
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b605_start_process_with_a_shell.html",
+      "test_id": "B605",
+      "test_name": "start_process_with_a_shell"
+    },
+    {
+      "code": "35         f\"tar -czf /backups/{filename}.tar.gz /data/{filename}\",\n36         shell=True,\n37     )\n38     return result\n39 \n40 \n",
+      "col_offset": 13,
+      "end_col_offset": 5,
+      "filename": "examples/vulnerable_samples/02_command_injection.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 36,
+      "line_range": [
+        34,
+        35,
+        36,
+        37
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "43     \"\"\"Return the current process user. Not vulnerable \u2014 fixed command, no user input.\"\"\"\n44     return subprocess.check_output([\"whoami\"]).decode().strip()\n45 \n",
+      "col_offset": 11,
+      "end_col_offset": 46,
+      "filename": "examples/vulnerable_samples/02_command_injection.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 44,
+      "line_range": [
+        44
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "43     \"\"\"Return the current process user. Not vulnerable \u2014 fixed command, no user input.\"\"\"\n44     return subprocess.check_output([\"whoami\"]).decode().strip()\n45 \n",
+      "col_offset": 11,
+      "end_col_offset": 46,
+      "filename": "examples/vulnerable_samples/02_command_injection.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 44,
+      "line_range": [
+        44
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "17 # Hardcoded credentials - all of these are findings\n18 DATABASE_PASSWORD = \"Sup3rS3cret!2024\"\n19 API_TOKEN = \"sk-live-9c8f7b2d3e4a5b6c7d8e9f0a1b2c3d4e\"\n",
+      "col_offset": 20,
+      "end_col_offset": 38,
+      "filename": "examples/vulnerable_samples/04_hardcoded_credentials.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'Sup3rS3cret!2024'",
+      "line_number": 18,
+      "line_range": [
+        18
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "18 DATABASE_PASSWORD = \"Sup3rS3cret!2024\"\n19 API_TOKEN = \"sk-live-9c8f7b2d3e4a5b6c7d8e9f0a1b2c3d4e\"\n20 JWT_SIGNING_KEY = \"this-is-the-jwt-secret-do-not-share\"\n",
+      "col_offset": 12,
+      "end_col_offset": 54,
+      "filename": "examples/vulnerable_samples/04_hardcoded_credentials.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'sk-live-9c8f7b2d3e4a5b6c7d8e9f0a1b2c3d4e'",
+      "line_number": 19,
+      "line_range": [
+        19
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "21 AWS_ACCESS_KEY = \"AKIAIOSFODNN7EXAMPLE\"\n22 AWS_SECRET_KEY = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"\n23 \n",
+      "col_offset": 17,
+      "end_col_offset": 59,
+      "filename": "examples/vulnerable_samples/04_hardcoded_credentials.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'",
+      "line_number": 22,
+      "line_range": [
+        22
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "36     \"\"\"Call third-party API with hardcoded token.\"\"\"\n37     return requests.post(\n38         \"https://api.payments.example.com/charge\",\n39         headers={\"Authorization\": f\"Bearer {API_TOKEN}\"},\n40         json={\"amount\": amount},\n41     )\n42 \n",
+      "col_offset": 11,
+      "end_col_offset": 5,
+      "filename": "examples/vulnerable_samples/04_hardcoded_credentials.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 37,
+      "line_range": [
+        37,
+        38,
+        39,
+        40,
+        41
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "45     \"\"\"Inline credentials in a URL - another anti-pattern.\"\"\"\n46     return requests.get(\"https://admin:hunter2@internal.example.com/api/status\")\n47 \n",
+      "col_offset": 11,
+      "end_col_offset": 80,
+      "filename": "examples/vulnerable_samples/04_hardcoded_credentials.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 46,
+      "line_range": [
+        46
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "52     token = os.environ[\"API_TOKEN\"]\n53     return requests.get(\n54         \"https://api.example.com/data\",\n55         headers={\"Authorization\": f\"Bearer {token}\"},\n56     )\n",
+      "col_offset": 11,
+      "end_col_offset": 5,
+      "filename": "examples/vulnerable_samples/04_hardcoded_credentials.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 53,
+      "line_range": [
+        53,
+        54,
+        55,
+        56
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "14 import hashlib\n15 from Crypto.Cipher import AES, DES\n16 from Crypto.Util.Padding import pad\n",
+      "col_offset": 0,
+      "end_col_offset": 34,
+      "filename": "examples/vulnerable_samples/05_weak_crypto.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 327,
+        "link": "https://cwe.mitre.org/data/definitions/327.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "The pyCrypto library and its module AES are no longer actively maintained and have been deprecated. Consider using pyca/cryptography library.",
+      "line_number": 15,
+      "line_range": [
+        15
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b413-import-pycrypto",
+      "test_id": "B413",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "15 from Crypto.Cipher import AES, DES\n16 from Crypto.Util.Padding import pad\n17 \n",
+      "col_offset": 0,
+      "end_col_offset": 35,
+      "filename": "examples/vulnerable_samples/05_weak_crypto.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 327,
+        "link": "https://cwe.mitre.org/data/definitions/327.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "The pyCrypto library and its module pad are no longer actively maintained and have been deprecated. Consider using pyca/cryptography library.",
+      "line_number": 16,
+      "line_range": [
+        16
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b413-import-pycrypto",
+      "test_id": "B413",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "21     # MD5 is fast, unsalted here, and broken for password storage\n22     return hashlib.md5(password.encode()).hexdigest()\n23 \n",
+      "col_offset": 11,
+      "end_col_offset": 41,
+      "filename": "examples/vulnerable_samples/05_weak_crypto.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 327,
+        "link": "https://cwe.mitre.org/data/definitions/327.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Use of weak MD5 hash for security. Consider usedforsecurity=False",
+      "line_number": 22,
+      "line_range": [
+        22
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html",
+      "test_id": "B324",
+      "test_name": "hashlib"
+    },
+    {
+      "code": "26     \"\"\"Also vulnerable: SHA-1 is similarly unsuitable for passwords.\"\"\"\n27     return hashlib.sha1(password.encode()).hexdigest()\n28 \n",
+      "col_offset": 11,
+      "end_col_offset": 42,
+      "filename": "examples/vulnerable_samples/05_weak_crypto.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 327,
+        "link": "https://cwe.mitre.org/data/definitions/327.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Use of weak SHA1 hash for security. Consider usedforsecurity=False",
+      "line_number": 27,
+      "line_range": [
+        27
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html",
+      "test_id": "B324",
+      "test_name": "hashlib"
+    },
+    {
+      "code": "38     \"\"\"VULNERABLE: DES has a 56-bit key, brute-forceable in hours.\"\"\"\n39     cipher = DES.new(key, DES.MODE_CBC, iv=b\"12345678\")\n40     return cipher.encrypt(pad(plaintext, DES.block_size))\n",
+      "col_offset": 13,
+      "end_col_offset": 55,
+      "filename": "examples/vulnerable_samples/05_weak_crypto.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 327,
+        "link": "https://cwe.mitre.org/data/definitions/327.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Use of insecure cipher Crypto.Cipher.DES.new. Replace with a known secure cipher such as AES.",
+      "line_number": 39,
+      "line_range": [
+        39
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b304-b305-ciphers-and-modes",
+      "test_id": "B304",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "12 \n13 import pickle\n14 import base64\n",
+      "col_offset": 0,
+      "end_col_offset": 13,
+      "filename": "examples/vulnerable_samples/07_insecure_deserialization.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 502,
+        "link": "https://cwe.mitre.org/data/definitions/502.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with pickle module.",
+      "line_number": 13,
+      "line_range": [
+        13
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b403-import-pickle",
+      "test_id": "B403",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "26     # The attacker can craft a payload that runs arbitrary Python on load.\n27     session_data = pickle.loads(base64.b64decode(encoded))\n28     return {\"restored\": list(session_data.keys())}\n",
+      "col_offset": 19,
+      "end_col_offset": 58,
+      "filename": "examples/vulnerable_samples/07_insecure_deserialization.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 502,
+        "link": "https://cwe.mitre.org/data/definitions/502.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue.",
+      "line_number": 27,
+      "line_range": [
+        27
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b301-pickle",
+      "test_id": "B301",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "36     # construction, which can lead to code execution.\n37     config = yaml.load(raw)\n38     return {\"keys\": list(config.keys())}\n",
+      "col_offset": 13,
+      "end_col_offset": 27,
+      "filename": "examples/vulnerable_samples/07_insecure_deserialization.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 20,
+        "link": "https://cwe.mitre.org/data/definitions/20.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of unsafe yaml load. Allows instantiation of arbitrary objects. Consider yaml.safe_load().",
+      "line_number": 37,
+      "line_range": [
+        37
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b506_yaml_load.html",
+      "test_id": "B506",
+      "test_name": "yaml_load"
+    },
+    {
+      "code": "16 from lxml import etree\n17 from xml.dom import minidom\n18 from defusedxml.ElementTree import fromstring as safe_fromstring\n",
+      "col_offset": 0,
+      "end_col_offset": 27,
+      "filename": "examples/vulnerable_samples/09_xxe.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 20,
+        "link": "https://cwe.mitre.org/data/definitions/20.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Using minidom to parse untrusted XML data is known to be vulnerable to XML attacks. Replace minidom with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.",
+      "line_number": 17,
+      "line_range": [
+        17
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b408-import-xml-minidom",
+      "test_id": "B408",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "42     xml_input = request.data.decode()\n43     dom = minidom.parseString(xml_input)\n44     return dom.toxml()\n",
+      "col_offset": 10,
+      "end_col_offset": 40,
+      "filename": "examples/vulnerable_samples/09_xxe.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 20,
+        "link": "https://cwe.mitre.org/data/definitions/20.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Using xml.dom.minidom.parseString to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.dom.minidom.parseString with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called",
+      "line_number": 43,
+      "line_range": [
+        43
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b313-b320-xml-bad-minidom",
+      "test_id": "B318",
+      "test_name": "blacklist"
+    }
+  ]
+}
