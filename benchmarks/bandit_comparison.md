@@ -167,12 +167,12 @@ Five vulnerability classes in the corpus are invisible to Bandit because they re
 | Explainability | Generic rule descriptions | Context-specific reasoning per finding |
 | False positives | Higher noise (informational warnings) | Lower (scoped to exploitable issues) |
 
-Bandit is the right tool for catching the easy stuff fast and free. Sentinel is the right tool for catching the hard stuff that pattern matching misses. They are complementary, not competing — which is why Phase 3 of this project integrates Semgrep as a pre-filter with the LLM as the deep-analysis pass.
+Bandit is the right tool for catching the easy stuff fast and free. Sentinel is the right tool for catching the hard stuff that pattern matching misses. They are complementary, not competing, which is why Phase 3 of this project integrates Semgrep as a pre-filter with the LLM as the deep-analysis pass.
 
 ---
 
 ## Conclusion
 
-On a 10-file corpus covering the OWASP Top 10, Bandit detected **29%** of vulnerability categories while Sentinel detected **93%**. The gap is not a Bandit quality problem — Bandit is excellent at what it does. The gap exists because five of the ten vulnerability classes in this corpus (path traversal, SSRF, IDOR, open redirect, and fine-grained crypto taxonomy) fundamentally require semantic understanding of code intent, data flow, and business logic that rule-based pattern matching cannot provide.
+On a 10-file corpus covering the OWASP Top 10, Bandit detected **29%** of vulnerability categories while Sentinel detected **93%**. The gap is not a Bandit quality problem, Bandit is excellent at what it does. The gap exists because five of the ten vulnerability classes in this corpus (path traversal, SSRF, IDOR, open redirect, and fine-grained crypto taxonomy) fundamentally require semantic understanding of code intent, data flow, and business logic that rule-based pattern matching cannot provide.
 
 The cost of that additional coverage is ~$0.036 per file and ~21 seconds of latency per file. For a security review where a missed vulnerability could mean a data breach, that tradeoff is straightforward.
