@@ -26,10 +26,7 @@ from sentinel.models import Finding, ReviewResult, Severity
 # ---------------------------------------------------------------------------
 # Severity styling
 # ---------------------------------------------------------------------------
-#
-# Rich color names. These render nicely on both dark and light terminal themes.
-# Bold for the headline severities (critical/high) so they catch the eye in
-# a long review.
+
 
 SEVERITY_STYLES: dict[Severity, str] = {
     Severity.CRITICAL: "bold red",
