@@ -34,12 +34,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Tool schema for structured output
 # ---------------------------------------------------------------------------
-#
-# We use Claude's tool use feature to force structured JSON output instead of
-# parsing free-form text. This is more reliable than asking the model to
-# "output JSON" in the prompt - the API enforces the schema for us.
-#
-# Keep this in sync with the Pydantic Finding model in models.py.
 
 REPORT_FINDINGS_TOOL: dict[str, Any] = {
     "name": "report_security_findings",
