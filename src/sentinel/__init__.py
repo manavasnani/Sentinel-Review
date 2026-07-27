@@ -16,7 +16,7 @@ from sentinel.exceptions import (
 )
 from sentinel.models import Confidence, Finding, ReviewResult, Severity
 
-__version__ = "0.1.0"
+__version__ = "0.2.0-dev"
 __author__ = "Manav Asnani"
 __license__ = "MIT"
 
