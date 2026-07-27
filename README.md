@@ -6,7 +6,7 @@ An AI-powered code review tool that catches security vulnerabilities traditional
 
 ## What is this?
 
-Static analysis tools like Bandit and Semgrep are great at pattern matching, but they can't reason about what your code is actually doing. They'll catch `os.system(user_input)` but completely miss an IDOR where you forgot to check if the logged-in user actually owns the resource they're requesting. They can't trace user input flowing through three functions into a dangerous sink. They don't understand business logic.
+Static analysis tools like Bandit are great at pattern matching, but they can't reason about what your code is actually doing. They'll catch `os.system(user_input)` but completely miss an IDOR where you forgot to check if the logged-in user actually owns the resource they're requesting. They can't trace user input flowing through three functions into a dangerous sink. They don't understand business logic.
 
 Sentinel Review uses Claude (Anthropic's LLM) to do contextual security review. You give it a Python file, it reads the code, reasons about data flow and intent, and returns structured findings with severity, CWE tags, and suggested fixes. Think of it as having a senior AppSec engineer review your code, except it costs $0.03 per file and runs in 20 seconds.
 
@@ -40,7 +40,7 @@ The key design decision is using Claude's **tool use** feature instead of asking
 
 ```bash
 # 1. Clone
-git clone https://github.com/yourusername/sentinel-review.git
+git clone https://github.com/manavasnani/sentinel-review.git
 cd sentinel-review
 
 # 2. Install
