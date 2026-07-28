@@ -1,5 +1,8 @@
 # Prompt Changelog
 
+### Structural note (Phase 2 refactor, 2026-07-28)
+The v2 prompt was moved from `src/sentinel/prompts.py` into `src/sentinel/prompts/python.py` as part of the Phase 2 prompts package refactor. The prompt content is unchanged, and a corpus re-run (`benchmarks/python_corpus_run3.json`) confirmed identical detection behavior.
+
 ## v2 (2026-05-20) - Post-benchmark calibration
 
 Changes motivated by benchmark run 1 analysis against ground_truth.yaml.
