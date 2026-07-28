@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from sentinel.models import Confidence, Finding, ReviewResult, Severity
+from sentinel.models import Confidence, DiffFile, Finding, Language, ReviewResult, Severity
 
 
 def _valid_finding_kwargs(**overrides):
@@ -101,3 +101,123 @@ class TestReviewResult:
         assert counts[Severity.HIGH] == 2
         assert counts[Severity.LOW] == 1
         assert counts[Severity.CRITICAL] == 0
+
+class TestDiffFile:
+    """Tests for the DiffFile model added in Phase 2."""
+
+    def _valid_kwargs(self, **overrides):
+        base = {
+            "file_path": "src/app/auth.py",
+            "new_content": "import os\n\ndef login(user_id):\n    return user_id\n",
+            "changed_line_ranges": [(3, 4)],
+            "is_new_file": False,
+            "language": Language.PYTHON,
+        }
+        base.update(overrides)
+        return base
+
+    def test_valid_diff_file(self):
+        df = DiffFile(**self._valid_kwargs())
+        assert df.file_path == "src/app/auth.py"
+        assert df.changed_line_ranges == [(3, 4)]
+        assert df.is_new_file is False
+
+    def test_empty_file_path_rejected(self):
+        with pytest.raises(ValidationError):
+            DiffFile(**self._valid_kwargs(file_path=""))
+
+    def test_empty_changed_ranges_allowed(self):
+        """A file with no changed lines should still be constructible."""
+        df = DiffFile(**self._valid_kwargs(changed_line_ranges=[]))
+        assert df.changed_line_ranges == []
+        assert df.total_changed_lines == 0
+
+    def test_start_less_than_one_rejected(self):
+        with pytest.raises(ValidationError):
+            DiffFile(**self._valid_kwargs(changed_line_ranges=[(0, 5)]))
+
+    def test_end_before_start_rejected(self):
+        with pytest.raises(ValidationError):
+            DiffFile(**self._valid_kwargs(changed_line_ranges=[(10, 5)]))
+
+    def test_multiple_ranges_allowed(self):
+        df = DiffFile(**self._valid_kwargs(
+            changed_line_ranges=[(3, 5), (20, 22), (50, 55)]
+        ))
+        assert len(df.changed_line_ranges) == 3
+
+    def test_extra_fields_rejected(self):
+        kwargs = self._valid_kwargs()
+        kwargs["mystery_field"] = "hello"
+        with pytest.raises(ValidationError):
+            DiffFile(**kwargs)
+
+    def test_diff_file_is_frozen(self):
+        df = DiffFile(**self._valid_kwargs())
+        with pytest.raises(ValidationError):
+            df.file_path = "different.py"  # type: ignore[misc]
+
+    def test_is_new_file_defaults_false(self):
+        kwargs = self._valid_kwargs()
+        del kwargs["is_new_file"]
+        df = DiffFile(**kwargs)
+        assert df.is_new_file is False
+
+    def test_is_pure_addition_matches_is_new_file(self):
+        new_df = DiffFile(**self._valid_kwargs(is_new_file=True))
+        old_df = DiffFile(**self._valid_kwargs(is_new_file=False))
+        assert new_df.is_pure_addition is True
+        assert old_df.is_pure_addition is False
+
+    def test_total_changed_lines_single_range(self):
+        df = DiffFile(**self._valid_kwargs(
+            changed_line_ranges=[(10, 15)]
+        ))
+        # Inclusive: lines 10,11,12,13,14,15 = 6 lines
+        assert df.total_changed_lines == 6
+
+    def test_total_changed_lines_multiple_ranges(self):
+        df = DiffFile(**self._valid_kwargs(
+            changed_line_ranges=[(1, 3), (10, 12), (20, 20)]
+        ))
+        # 3 + 3 + 1 = 7 lines
+        assert df.total_changed_lines == 7
+
+    def test_total_changed_lines_empty(self):
+        df = DiffFile(**self._valid_kwargs(changed_line_ranges=[]))
+        assert df.total_changed_lines == 0
+
+    def test_contains_line_inside_range(self):
+        df = DiffFile(**self._valid_kwargs(
+            changed_line_ranges=[(10, 15)]
+        ))
+        assert df.contains_line(12) is True
+        assert df.contains_line(10) is True  # inclusive start
+        assert df.contains_line(15) is True  # inclusive end
+
+    def test_contains_line_outside_range(self):
+        df = DiffFile(**self._valid_kwargs(
+            changed_line_ranges=[(10, 15)]
+        ))
+        assert df.contains_line(9) is False
+        assert df.contains_line(16) is False
+
+    def test_contains_line_multiple_ranges(self):
+        df = DiffFile(**self._valid_kwargs(
+            changed_line_ranges=[(1, 3), (20, 25)]
+        ))
+        assert df.contains_line(2) is True
+        assert df.contains_line(22) is True
+        assert df.contains_line(10) is False
+        
+    def test_language_is_required(self):
+        kwargs = self._valid_kwargs()
+        del kwargs["language"]
+        with pytest.raises(ValidationError):
+            DiffFile(**kwargs)
+
+    def test_language_field_stored_correctly(self):
+        py = DiffFile(**self._valid_kwargs(language=Language.PYTHON))
+        js = DiffFile(**self._valid_kwargs(language=Language.JAVASCRIPT))
+        assert py.language == Language.PYTHON
+        assert js.language == Language.JAVASCRIPT

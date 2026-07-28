@@ -77,6 +77,39 @@ class Confidence(str, Enum):
     MEDIUM = "medium"
     LOW = "low"
 
+class Language(str, Enum):
+    """
+    Supported programming languages for security analysis.
+
+    Each language corresponds to a specific system prompt module in
+    sentinel.prompts. Adding a new language requires:
+      1. Adding an entry here
+      2. Creating a prompt module under sentinel.prompts.<language>
+      3. Registering the file extension in sentinel.diff.language_detection
+      4. Adding a corpus under examples/vulnerable_samples/<language>/
+    """
+
+    PYTHON = "python"
+    JAVASCRIPT = "javascript"
+    TYPESCRIPT = "typescript"
+
+    @property
+    def display_name(self) -> str:
+        """Human-readable name for use in output and error messages."""
+        return {
+            Language.PYTHON: "Python",
+            Language.JAVASCRIPT: "JavaScript",
+            Language.TYPESCRIPT: "TypeScript",
+        }[self]
+
+    @property
+    def file_extensions(self) -> tuple[str, ...]:
+        """File extensions associated with this language, lowercase, with the leading dot."""
+        return {
+            Language.PYTHON: (".py",),
+            Language.JAVASCRIPT: (".js", ".jsx", ".mjs", ".cjs"),
+            Language.TYPESCRIPT: (".ts", ".tsx"),
+        }[self]
 
 # ---------------------------------------------------------------------------
 # Finding
@@ -217,6 +250,13 @@ class ReviewResult(BaseModel):
         ge=0,
         description="Number of output tokens generated.",
     )
+    language: Language | None = Field(
+        default=None,
+        description=(
+            "Language of the analyzed code. Optional for backward compatibility "
+            "with Phase 1 reviews and multi-language directory scans."
+        ),
+    )
     elapsed_seconds: float = Field(
         default=0.0,
         ge=0.0,
@@ -256,3 +296,76 @@ class ReviewResult(BaseModel):
         for finding in self.findings:
             counts[finding.severity] += 1
         return counts
+    
+# ---------------------------------------------------------------------------
+# DiffFile (Phase 2)
+# ---------------------------------------------------------------------------
+
+class DiffFile(BaseModel):
+    """
+    Represents a single file changed in a pull request diff.
+
+    Produced by the diff parser and consumed by the analyzer. Contains the
+    file's full new content (so the model has context) and metadata about
+    which lines actually changed (so the analyzer can focus its review).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    file_path: str = Field(
+        ...,
+        description="Path of the file relative to the repo root.",
+        min_length=1,
+    )
+    new_content: str = Field(
+        ...,
+        description="Full content of the file after the change.",
+    )
+    changed_line_ranges: list[tuple[int, int]] = Field(
+        default_factory=list,
+        description=(
+            "List of (start, end) line-range tuples marking which lines "
+            "were added or modified. Line numbers refer to the new_content. "
+            "Ranges are inclusive on both ends and 1-indexed."
+        ),
+    )
+    is_new_file: bool = Field(
+        default=False,
+        description="True if this file did not exist before the PR.",
+    )
+
+    language: Language = Field(
+        ...,
+        description="Programming language of this file, used to route to the correct prompt.",
+    )
+    
+    @model_validator(mode="after")
+    def _validate_line_ranges(self) -> Self:
+        """All ranges must be valid (start <= end, both >= 1)."""
+        for i, (start, end) in enumerate(self.changed_line_ranges):
+            if start < 1:
+                raise ValueError(
+                    f"changed_line_ranges[{i}]: start ({start}) must be >= 1"
+                )
+            if end < start:
+                raise ValueError(
+                    f"changed_line_ranges[{i}]: end ({end}) must be >= start ({start})"
+                )
+        return self
+
+    @property
+    def is_pure_addition(self) -> bool:
+        """True if this file was newly created in this PR."""
+        return self.is_new_file
+
+    @property
+    def total_changed_lines(self) -> int:
+        """Total count of changed lines across all ranges."""
+        return sum(end - start + 1 for start, end in self.changed_line_ranges)
+
+    def contains_line(self, line_number: int) -> bool:
+        """Check if a given line number falls within any changed range."""
+        return any(
+            start <= line_number <= end
+            for start, end in self.changed_line_ranges
+        )
