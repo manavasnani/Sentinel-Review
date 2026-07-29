@@ -1,0 +1,16 @@
+diff --git a/src/app/auth.py b/src/app/auth.py
+new file mode 100644
+index 0000000..abc123
+--- /dev/null
++++ b/src/app/auth.py
+@@ -0,0 +1,10 @@
++import hashlib
++
++def hash_password(password):
++    # Vulnerable: MD5 for password hashing
++    return hashlib.md5(password.encode()).hexdigest()
++
++def check_password(password, stored_hash):
++    return hash_password(password) == stored_hash
++
++DEFAULT_PASSWORD = "changeme"

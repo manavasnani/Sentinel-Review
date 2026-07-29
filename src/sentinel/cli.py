@@ -33,7 +33,7 @@ from sentinel.exceptions import (
 )
 from sentinel.formatters import render_pretty, to_json
 from sentinel.models import ReviewResult, Severity
-
+from sentinel.diff.parser import parse_diff
 
 app = typer.Typer(
     name="sentinel",
@@ -193,6 +193,14 @@ def review(
         Optional[Path],
         typer.Option("--dir", "-d", help="Path to a directory; reviews all .py files."),
     ] = None,
+    diff: Annotated[
+    bool,
+    typer.Option(
+        "--diff",
+        help="Read a unified diff from stdin and show what would be reviewed. "
+             "Does not perform analysis yet.",
+    ),
+    ] = False,
     output: OutputFormat = "pretty",
     model: ModelOverride = None,
     fail_on: SeverityThreshold = None,
@@ -208,8 +216,57 @@ def review(
         sentinel review --file app.py --output json > findings.json
         sentinel review --file app.py --fail-on high
     """
+    
     _configure_logging(verbose)
+    
+    # Handle --diff mode: parse diff from stdin and print summary
+    if diff:
+        if file is not None or directory is not None:
+            stderr_console.print(
+                "[red]--diff cannot be combined with --file or --dir.[/red]"
+            )
+            raise typer.Exit(code=2)
 
+        _configure_logging(verbose)
+
+        diff_text = sys.stdin.read()
+        if not diff_text.strip():
+            stderr_console.print(
+                "[red]No diff input received on stdin.[/red]\n"
+                "Usage: git diff HEAD~1 | sentinel review --diff"
+            )
+            raise typer.Exit(code=2)
+
+        try:
+            diff_files = parse_diff(diff_text)
+        except AnalysisError as e:
+            stderr_console.print(f"[red]Failed to parse diff:[/red] {e}")
+            raise typer.Exit(code=2)
+
+        if not diff_files:
+            stderr_console.print(
+                "[yellow]No reviewable files found in diff.[/yellow]\n"
+                "(Files skipped: deleted files, binary files, or unsupported languages.)"
+            )
+            raise typer.Exit(code=0)
+
+        # Show what was parsed
+        stdout_console.print(
+            f"[bold cyan]Parsed diff: {len(diff_files)} reviewable file(s)[/bold cyan]"
+        )
+        for df in diff_files:
+            marker = " [new]" if df.is_new_file else ""
+            ranges = ", ".join(f"{s}-{e}" if s != e else str(s)
+                            for s, e in df.changed_line_ranges)
+            stdout_console.print(
+                f"  [cyan]{df.file_path}[/cyan]{marker} "
+                f"([dim]{df.language.display_name}[/dim]) "
+                f"— {df.total_changed_lines} changed lines: {ranges}"
+            )
+
+        # Exit here — actual analysis comes in a later step
+        raise typer.Exit(code=0)
+    
     if file is None and directory is None:
         stderr_console.print(
             "[red]Specify --file or --dir.[/red]\n"

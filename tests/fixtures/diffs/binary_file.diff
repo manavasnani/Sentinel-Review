@@ -1,0 +1,12 @@
+diff --git a/assets/logo.png b/assets/logo.png
+index 0000000..abc123
+Binary files /dev/null and b/assets/logo.png differ
+diff --git a/src/utils.py b/src/utils.py
+index def456..789abc 100644
+--- a/src/utils.py
++++ b/src/utils.py
+@@ -1,2 +1,4 @@
+ def helper():
+     return "hello"
++
++CONSTANT = 42

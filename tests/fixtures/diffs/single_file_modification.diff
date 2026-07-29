@@ -1,0 +1,13 @@
+diff --git a/src/app/queries.py b/src/app/queries.py
+index def456..789abc 100644
+--- a/src/app/queries.py
++++ b/src/app/queries.py
+@@ -10,7 +10,7 @@ def get_user(user_id):
+     conn = get_connection()
+     cursor = conn.cursor()
+     # BUG: SQL injection vulnerability
+-    cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
++    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+     row = cursor.fetchone()
+     conn.close()
+     return row
