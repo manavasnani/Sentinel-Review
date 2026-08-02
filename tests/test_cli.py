@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from sentinel.cli import app
-from sentinel.models import Confidence, Finding, ReviewResult, Severity
+from sentinel.models import Confidence, Finding, ReviewResult, Severity, Language
 
 
 runner = CliRunner()
