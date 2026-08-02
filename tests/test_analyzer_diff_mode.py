@@ -120,3 +120,154 @@ class TestAnalyzeDiffFile:
         result_mock.model_copy.assert_called_once()
         update_kwarg = result_mock.model_copy.call_args.kwargs["update"]
         assert update_kwarg == {"language": Language.PYTHON}
+        
+class TestAnalyzeDiffFileWithMockedResponse:
+    """
+    Higher-fidelity tests that mock the Anthropic API response but let
+    analyze_diff_file's own logic run end-to-end. Verifies the final
+    ReviewResult is constructed correctly.
+    """
+
+    def _make_diff_file(
+        self, is_new: bool = False, language: Language = Language.PYTHON
+    ) -> DiffFile:
+        return DiffFile(
+            file_path="src/app/auth.py",
+            new_content=(
+                "import hashlib\n"
+                "\n"
+                "def hash_password(password):\n"
+                "    return hashlib.md5(password.encode()).hexdigest()\n"
+            ),
+            changed_line_ranges=[(3, 4)],
+            is_new_file=is_new,
+            language=language,
+        )
+
+    def _make_mock_api_response(self, findings: list[dict]) -> MagicMock:
+        """Build a mock Anthropic response containing a tool_use block."""
+        tool_use_block = MagicMock()
+        tool_use_block.type = "tool_use"
+        tool_use_block.input = {
+            "findings": findings,
+            "summary": f"Found {len(findings)} issue(s).",
+        }
+
+        usage = MagicMock()
+        usage.input_tokens = 5000
+        usage.output_tokens = 800
+
+        response = MagicMock()
+        response.content = [tool_use_block]
+        response.usage = usage
+        return response
+
+    @patch("sentinel.analyzer._call_api_with_retry")
+    @patch("sentinel.analyzer._build_client")
+    def test_returns_review_result_with_findings(self, mock_client, mock_api):
+        """End-to-end: mock API response -> parsed ReviewResult."""
+        mock_api.return_value = self._make_mock_api_response(
+            findings=[
+                {
+                    "severity": "high",
+                    "cwe_id": "CWE-916",
+                    "owasp_category": "A02:2021 - Cryptographic Failures",
+                    "title": "MD5 used for password hashing",
+                    "file_path": "src/app/auth.py",
+                    "line_start": 4,
+                    "line_end": 4,
+                    "description": "MD5 is not a password KDF.",
+                    "vulnerable_code": "hashlib.md5(password.encode()).hexdigest()",
+                    "suggested_fix": "Use bcrypt or argon2 instead.",
+                    "confidence": "high",
+                    "reasoning": "MD5 is fast, enabling offline brute-force.",
+                }
+            ]
+        )
+
+        df = self._make_diff_file()
+        result = analyze_diff_file(df)
+
+        assert len(result.findings) == 1
+        finding = result.findings[0]
+        assert finding.severity == Severity.HIGH
+        assert finding.cwe_id == "CWE-916"
+
+    @patch("sentinel.analyzer._call_api_with_retry")
+    @patch("sentinel.analyzer._build_client")
+    def test_result_tagged_with_language(self, mock_client, mock_api):
+        mock_api.return_value = self._make_mock_api_response(findings=[])
+
+        df = self._make_diff_file(language=Language.PYTHON)
+        result = analyze_diff_file(df)
+
+        assert result.language == Language.PYTHON
+
+    @patch("sentinel.analyzer._call_api_with_retry")
+    @patch("sentinel.analyzer._build_client")
+    def test_empty_findings_yields_empty_result(self, mock_client, mock_api):
+        mock_api.return_value = self._make_mock_api_response(findings=[])
+
+        df = self._make_diff_file()
+        result = analyze_diff_file(df)
+
+        assert len(result.findings) == 0
+        assert result.finding_count == 0
+        assert result.has_findings is False
+
+    @patch("sentinel.analyzer._call_api_with_retry")
+    @patch("sentinel.analyzer._build_client")
+    def test_token_usage_captured(self, mock_client, mock_api):
+        mock_api.return_value = self._make_mock_api_response(findings=[])
+
+        df = self._make_diff_file()
+        result = analyze_diff_file(df)
+
+        assert result.input_tokens == 5000
+        assert result.output_tokens == 800
+
+    @patch("sentinel.analyzer._call_api_with_retry")
+    @patch("sentinel.analyzer._build_client")
+    def test_malformed_finding_skipped_not_crashed(self, mock_client, mock_api):
+        """A single bad finding should be skipped, others preserved."""
+        mock_api.return_value = self._make_mock_api_response(
+            findings=[
+                {
+                    # Good finding
+                    "severity": "high",
+                    "cwe_id": "CWE-89",
+                    "owasp_category": "A03:2021 - Injection",
+                    "title": "SQL Injection",
+                    "file_path": "src/app/auth.py",
+                    "line_start": 4,
+                    "line_end": 4,
+                    "description": "SQLi.",
+                    "vulnerable_code": "query = f'SELECT * FROM u WHERE id = {uid}'",
+                    "suggested_fix": "Use parameterized queries.",
+                    "confidence": "high",
+                    "reasoning": "User input flows to SQL.",
+                },
+                {
+                    # Malformed finding — cwe_id doesn't match the CWE-XX pattern
+                    "severity": "high",
+                    "cwe_id": "not-a-cwe",
+                    "owasp_category": "A03:2021 - Injection",
+                    "title": "Bogus",
+                    "file_path": "src/app/auth.py",
+                    "line_start": 4,
+                    "line_end": 4,
+                    "description": "x",
+                    "vulnerable_code": "x",
+                    "suggested_fix": "x",
+                    "confidence": "high",
+                    "reasoning": "x",
+                },
+            ]
+        )
+
+        df = self._make_diff_file()
+        result = analyze_diff_file(df)
+
+        # 1 good finding preserved, 1 malformed silently dropped
+        assert len(result.findings) == 1
+        assert result.findings[0].cwe_id == "CWE-89"

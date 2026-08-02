@@ -8,6 +8,7 @@ of the package, and formats output. All real logic lives elsewhere.
 Entry points:
     sentinel review --file <path>
     sentinel review --dir <path>
+    sentinel review --diff        (reads unified diff from stdin)
     sentinel version
 """
 
@@ -22,7 +23,7 @@ import typer
 from rich.console import Console
 
 from sentinel import __version__
-from sentinel.analyzer import analyze_file
+from sentinel.analyzer import analyze_file, analyze_diff_file
 from sentinel.config import SentinelConfig, get_config
 from sentinel.exceptions import (
     AnalysisError,
@@ -34,6 +35,7 @@ from sentinel.exceptions import (
 from sentinel.formatters import render_pretty, to_json
 from sentinel.models import ReviewResult, Severity
 from sentinel.diff.parser import parse_diff
+
 
 app = typer.Typer(
     name="sentinel",
@@ -161,6 +163,7 @@ def _exit_code_for_threshold(
         return 1
     return 0
 
+
 def _handle_error(e: Exception) -> int:
     """Map a SentinelError to a formatted message and exit code."""
     if isinstance(e, ConfigurationError):
@@ -194,12 +197,12 @@ def review(
         typer.Option("--dir", "-d", help="Path to a directory; reviews all .py files."),
     ] = None,
     diff: Annotated[
-    bool,
-    typer.Option(
-        "--diff",
-        help="Read a unified diff from stdin and show what would be reviewed. "
-             "Does not perform analysis yet.",
-    ),
+        bool,
+        typer.Option(
+            "--diff",
+            help="Read a unified diff from stdin and analyze the changed lines. "
+                 "Example: git diff HEAD~1 | sentinel review --diff",
+        ),
     ] = False,
     output: OutputFormat = "pretty",
     model: ModelOverride = None,
@@ -207,27 +210,25 @@ def review(
     verbose: VerboseFlag = False,
 ) -> None:
     """
-    Review a file or directory for security vulnerabilities.
+    Review a file, directory, or PR diff for security vulnerabilities.
 
     Examples:
-
         sentinel review --file app/auth.py
         sentinel review --dir src/
         sentinel review --file app.py --output json > findings.json
         sentinel review --file app.py --fail-on high
+        git diff HEAD~1 | sentinel review --diff
+        git diff HEAD~1 | sentinel review --diff --fail-on high
     """
-    
     _configure_logging(verbose)
-    
-    # Handle --diff mode: parse diff from stdin and print summary
+
+    # Handle --diff mode: parse diff from stdin and analyze the changed lines
     if diff:
         if file is not None or directory is not None:
             stderr_console.print(
                 "[red]--diff cannot be combined with --file or --dir.[/red]"
             )
             raise typer.Exit(code=2)
-
-        _configure_logging(verbose)
 
         diff_text = sys.stdin.read()
         if not diff_text.strip():
@@ -250,29 +251,45 @@ def review(
             )
             raise typer.Exit(code=0)
 
-        # Show what was parsed
-        stdout_console.print(
-            f"[bold cyan]Parsed diff: {len(diff_files)} reviewable file(s)[/bold cyan]"
-        )
-        for df in diff_files:
-            marker = " [new]" if df.is_new_file else ""
-            ranges = ", ".join(f"{s}-{e}" if s != e else str(s)
-                            for s, e in df.changed_line_ranges)
-            stdout_console.print(
-                f"  [cyan]{df.file_path}[/cyan]{marker} "
-                f"([dim]{df.language.display_name}[/dim]) "
-                f"— {df.total_changed_lines} changed lines: {ranges}"
-            )
+        # Analyze each changed file with the language-specific diff-mode prompt
+        try:
+            config = _build_config(model)
+            threshold = _parse_severity(fail_on)
 
-        # Exit here — actual analysis comes in a later step
-        raise typer.Exit(code=0)
-    
+            if output.lower() == "pretty":
+                stderr_console.print(
+                    f"[dim]Analyzing {len(diff_files)} file(s) in diff mode...[/dim]"
+                )
+
+            aggregated_exit = 0
+            for df in diff_files:
+                if output.lower() == "pretty":
+                    marker = " [new]" if df.is_new_file else ""
+                    stderr_console.print(
+                        f"\n[bold cyan]→ {df.file_path}[/bold cyan]{marker} "
+                        f"([dim]{df.language.display_name}[/dim], "
+                        f"{df.total_changed_lines} changed lines)"
+                    )
+                result = analyze_diff_file(df, config=config)
+                _emit_result(result, output)
+                if _exit_code_for_threshold(result, threshold) != 0:
+                    aggregated_exit = 1
+
+            sys.exit(aggregated_exit)
+
+        except SentinelError as e:
+            sys.exit(_handle_error(e))
+
+    # ─────────────────────────────────────────────────
+    # File / directory mode (Phase 1 behavior, unchanged)
+    # ─────────────────────────────────────────────────
     if file is None and directory is None:
         stderr_console.print(
-            "[red]Specify --file or --dir.[/red]\n"
+            "[red]Specify --file, --dir, or --diff.[/red]\n"
             "Run 'sentinel review --help' for usage."
         )
         raise typer.Exit(code=2)
+
     if file is not None and directory is not None:
         stderr_console.print("[red]Use --file OR --dir, not both.[/red]")
         raise typer.Exit(code=2)
