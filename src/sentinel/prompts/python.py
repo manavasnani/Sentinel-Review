@@ -21,7 +21,7 @@ from typing import Final
 from sentinel.prompts.base import OUTPUT_INSTRUCTION, PROMPT_INJECTION_DEFENSE
 
 
-SYSTEM_PROMPT_VERSION: Final[str] = "v2"
+SYSTEM_PROMPT_VERSION: Final[str] = "v3"
 
 
 # ---------------------------------------------------------------------------

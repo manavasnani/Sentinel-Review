@@ -22,11 +22,14 @@ from sentinel.exceptions import (
     ConfigurationError,
     ParseError,
 )
-from sentinel.models import Finding, ReviewResult
+from sentinel.models import DiffFile, Finding, Language, ReviewResult, Severity
 from sentinel.prompts import (
     SECURITY_REVIEW_SYSTEM_PROMPT,
     format_review_request,
+    get_prompt_module,
 )
+
+from sentinel.prompts.diff_addendum import DIFF_MODE_ADDENDUM
 
 logger = logging.getLogger(__name__)
 
@@ -272,42 +275,42 @@ def _parse_findings(
 
     return findings, summary
 
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-def analyze_code(
-    code: str,
-    file_path: str = "<inline>",
-    config: SentinelConfig | None = None,
+def _call_api_and_parse(
+    system_prompt: str,
+    user_message: str,
+    file_path: str,
+    config: SentinelConfig,
 ) -> ReviewResult:
     """
-    Analyze a string of source code for security vulnerabilities.
+    Shared API interaction used by analyze_code() and analyze_diff_file().
+
+    Handles:
+      - Building the Anthropic client
+      - Calling the API with retry logic
+      - Extracting the tool_use response
+      - Parsing findings via Pydantic
+      - Assembling the ReviewResult with timing and token counts
 
     Args:
-        code: Source code to review.
-        file_path: Logical file path for the code. Used in findings and prompts.
-        config: Optional config override. Defaults to env-based config.
+        system_prompt: The full system prompt (may include diff-mode addendum).
+        user_message: The user-facing message (code + few-shot examples).
+        file_path: Logical path for the reviewed code. Used in findings.
+        config: Configuration for the API client.
 
     Returns:
         ReviewResult with findings, summary, token usage, and timing.
 
     Raises:
-        ConfigurationError: API key is missing.
         APIError: API call failed after all retries.
         ParseError: Response could not be parsed.
     """
-    config = config or get_config()
     client = _build_client(config)
-
-    user_message = format_review_request(code=code, file_path=file_path)
 
     start = time.perf_counter()
     response = _call_api_with_retry(
         client=client,
         config=config,
-        system_prompt=SECURITY_REVIEW_SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         user_message=user_message,
     )
     elapsed = time.perf_counter() - start
@@ -336,6 +339,41 @@ def analyze_code(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         elapsed_seconds=elapsed,
+    )
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def analyze_code(
+    code: str,
+    file_path: str = "<inline>",
+    config: SentinelConfig | None = None,
+) -> ReviewResult:
+    """
+    Analyze a string of source code for security vulnerabilities.
+
+    Args:
+        code: Source code to review.
+        file_path: Logical file path for the code. Used in findings and prompts.
+        config: Optional config override. Defaults to env-based config.
+
+    Returns:
+        ReviewResult with findings, summary, token usage, and timing.
+
+    Raises:
+        ConfigurationError: API key is missing.
+        APIError: API call failed after all retries.
+        ParseError: Response could not be parsed.
+    """
+    config = config or get_config()
+    user_message = format_review_request(code=code, file_path=file_path)
+
+    return _call_api_and_parse(
+        system_prompt=SECURITY_REVIEW_SYSTEM_PROMPT,
+        user_message=user_message,
+        file_path=file_path,
+        config=config,
     )
 
 
@@ -376,3 +414,152 @@ def analyze_file(
         file_path=str(file_path),
         config=config,
     )
+
+# ---------------------------------------------------------------------------
+# Diff-mode analysis (Phase 2)
+# ---------------------------------------------------------------------------
+
+def analyze_diff_file(
+    diff_file: DiffFile,
+    config: SentinelConfig | None = None,
+) -> ReviewResult:
+    """
+    Analyze a DiffFile in diff mode.
+
+    Focuses the model's attention on the lines that changed in the PR,
+    with immediate context provided for reference. Returns a ReviewResult
+    with findings scoped to the changed lines.
+
+    Behavior differs from analyze_file() in three ways:
+      1. The system prompt is language-specific + diff-mode addendum.
+      2. The code is formatted with [CHANGED]/[CONTEXT] line markers.
+      3. Line numbers in findings refer to the new file (post-merge).
+
+    Args:
+        diff_file: The parsed DiffFile from the diff parser.
+        config: Optional configuration override. If None, uses env-based
+                config as loaded by config.get_config().
+
+    Returns:
+        ReviewResult with findings, language set to diff_file.language.
+
+    Raises:
+        APIError: If the Anthropic API call fails after retries.
+        ParseError: If the response cannot be parsed into findings.
+        AnalysisError: For other unexpected errors.
+    """
+    cfg = config or get_config()
+
+    # Get the language-specific prompt module and combine with diff addendum
+    prompt_module = get_prompt_module(diff_file.language)
+    system_prompt = prompt_module.SECURITY_REVIEW_SYSTEM_PROMPT + DIFF_MODE_ADDENDUM
+
+    # Format the user message with change markers
+    user_message = _format_diff_review_request(
+        diff_file=diff_file,
+        prompt_module=prompt_module,
+    )
+
+    # Call the API (reuses the same underlying request/retry logic)
+    review_result = _call_api_and_parse(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        file_path=diff_file.file_path,
+        config=cfg,
+    )
+
+    # Tag the result with the language for downstream routing (formatters,
+    # comment generators, SARIF output, etc.)
+    return review_result.model_copy(update={"language": diff_file.language})
+
+
+def _format_diff_review_request(
+    diff_file: DiffFile,
+    prompt_module,
+) -> str:
+    """
+    Format the user message for diff-mode analysis.
+
+    The message contains:
+      1. The few-shot examples from the language-specific prompt module.
+      2. The file path.
+      3. The code with per-line [CHANGED] or [CONTEXT] markers.
+
+    For new files (is_new_file=True), the markers are omitted since every
+    line is a change; the model reviews the whole content normally.
+    """
+    few_shot = prompt_module.FEW_SHOT_EXAMPLES
+    fence = chr(96) * 3
+
+    if diff_file.is_new_file:
+        # New file: every line is a change, no markers needed
+        marked_code = prompt_module._add_line_numbers(diff_file.new_content)
+        mode_note = (
+            "This is a NEW file added in this PR. Every line is a change. "
+            "Review the entire file for security issues."
+        )
+    else:
+        marked_code = _add_change_markers(
+            diff_file.new_content, diff_file.changed_line_ranges
+        )
+        mode_note = (
+            "This is a MODIFIED file. Only the lines marked [CHANGED] were "
+            "added or modified in this PR. Lines marked [CONTEXT] are shown "
+            "for reference. Focus your review on the [CHANGED] lines."
+        )
+
+    return f"""\
+{few_shot}
+
+---
+
+Now review the following pull request diff. {mode_note}
+
+Report vulnerabilities by calling the `report_security_findings` tool. \
+Use the line numbers shown for `line_start` and `line_end`.
+
+File: {diff_file.file_path}
+
+{fence}
+{marked_code}
+{fence}
+"""
+
+
+def _add_change_markers(
+    content: str,
+    changed_ranges: list[tuple[int, int]],
+) -> str:
+    """
+    Format code with per-line [CHANGED] or [CONTEXT] markers.
+
+    Each line is prefixed with its line number and a marker indicating
+    whether that line was changed in the PR. The output looks like:
+
+         1  [CONTEXT] def hello():
+         2  [CONTEXT]     return "world"
+         3  [CHANGED] 
+         4  [CHANGED] def new_function():
+         5  [CHANGED]     return "new"
+
+    This gives the model a strong visual anchor for what to focus on.
+    """
+    if not content:
+        return ""
+
+    lines = content.splitlines()
+
+    # Build a set of changed line numbers for O(1) lookup
+    changed_lines: set[int] = set()
+    for start, end in changed_ranges:
+        changed_lines.update(range(start, end + 1))
+
+    # Format each line with its number and marker
+    width = len(str(len(lines)))
+    marked_lines: list[str] = []
+    for i, line in enumerate(lines, start=1):
+        marker = "[CHANGED]" if i in changed_lines else "[CONTEXT]"
+        marked_lines.append(f"{i:>{width}}  {marker} {line}")
+
+    return "\n".join(marked_lines)
+

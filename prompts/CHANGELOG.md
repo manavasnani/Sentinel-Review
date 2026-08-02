@@ -1,5 +1,50 @@
 # Prompt Changelog
 
+## v3 (2026-07-30) - Diff-mode addendum
+
+Added the diff-mode prompt addendum (`src/sentinel/prompts/diff_addendum.py`)
+for use when analyzing pull request diffs rather than whole files.
+
+### Changes
+
+**1. New addendum module** (`prompts/diff_addendum.py`)
+
+Contains `DIFF_MODE_ADDENDUM`, a language-agnostic prompt section that
+gets appended to the base system prompt when the analyzer is in diff mode.
+
+The addendum instructs the model to:
+- Focus on lines marked `[CHANGED]` (added or modified in the PR)
+- Ignore pre-existing issues in `[CONTEXT]` lines
+- STILL flag critical issues in context lines within 5 lines of changes
+  (catches regressions where new code interacts with adjacent vulnerable code)
+
+**2. No changes to language-specific prompts**
+
+The Python system prompt (`prompts/python.py`) is unchanged. The addendum
+is composed in at request time by the analyzer, not baked into the base
+prompt. This means:
+
+- Whole-file review behavior is unchanged (same as v2)
+- Diff-mode is opt-in and controlled by the analyzer, not the prompt module
+- Adding new languages doesn't require duplicating diff logic
+
+### Rationale for diff mode
+
+PRs typically add or modify a small subset of a file. Reviewing the whole
+file surfaces pre-existing issues unrelated to the PR, which creates noise
+for the developer. Focusing on changed lines:
+
+- Reduces false positive rate on PR reviews (the biggest UX problem)
+- Aligns findings with the developer's mental model (they opened this PR
+  for a specific purpose)
+- Cuts token cost by reviewing less code at a time
+
+### Testing plan
+
+Step 22 wires the addendum into `analyze_diff_file()`. Step 24 validates
+the behavior by running synthetic diffs of vulnerable corpus files against
+diff mode and confirming detection rates hold up.
+
 ### Structural note (Phase 2 refactor, 2026-07-28)
 The v2 prompt was moved from `src/sentinel/prompts.py` into `src/sentinel/prompts/python.py` as part of the Phase 2 prompts package refactor. The prompt content is unchanged, and a corpus re-run (`benchmarks/python_corpus_run3.json`) confirmed identical detection behavior.
 
