@@ -11,156 +11,295 @@
 # detection rate against this file.
 
 vulnerable_samples:
+  python:
+    01_sql_injection.py:
+      expected_findings:
+        - cwe_id: CWE-89
+          min_severity: high
+          approximate_lines: [18, 19]
+          notes: "f-string interpolation in SELECT"
+        - cwe_id: CWE-89
+          min_severity: high
+          approximate_lines: [29]
+          notes: "string concatenation in LIKE"
 
-  01_sql_injection.py:
-    expected_findings:
-      - cwe_id: CWE-89
-        min_severity: high
-        approximate_lines: [28, 29]
-        notes: "f-string interpolation in SELECT"
-      - cwe_id: CWE-89
-        min_severity: high
-        approximate_lines: [41, 42]
-        notes: "string concatenation in LIKE"
+    02_command_injection.py:
+      expected_findings:
+        - cwe_id: CWE-78
+          min_severity: high
+          approximate_lines: [12]
+          notes: "os.system with user input"
+        - cwe_id: CWE-78
+          min_severity: high
+          approximate_lines: [20, 21, 22]
+          notes: "subprocess shell=True with user input"
 
-  02_command_injection.py:
-    expected_findings:
-      - cwe_id: CWE-78
-        min_severity: high
-        approximate_lines: [27]
-        notes: "os.system with user input"
-      - cwe_id: CWE-78
-        min_severity: high
-        approximate_lines: [36, 37, 38]
-        notes: "subprocess shell=True with user input"
+    03_path_traversal.py:
+      expected_findings:
+        - cwe_id: CWE-22
+          min_severity: high
+          approximate_lines: [11, 12, 13]
+          notes: "unsanitized filename joined to upload dir"
+        - cwe_id: CWE-22
+          min_severity: high
+          approximate_lines: [18, 19, 20]
+          notes: "user log name concatenated to log dir"
 
-  03_path_traversal.py:
-    expected_findings:
-      - cwe_id: CWE-22
-        min_severity: high
-        approximate_lines: [25, 26]
-        notes: "unsanitized filename joined to upload dir"
-      - cwe_id: CWE-22
-        min_severity: high
-        approximate_lines: [34, 35]
-        notes: "user log name concatenated to log dir"
+    04_hardcoded_credentials.py:
+      expected_findings:
+        - cwe_id: CWE-798
+          min_severity: high
+          approximate_lines: [4]
+          notes: "hardcoded database password"
+        - cwe_id: CWE-798
+          min_severity: high
+          approximate_lines: [5]
+          notes: "hardcoded API token (payment service)"
+        - cwe_id: CWE-798
+          min_severity: high
+          approximate_lines: [6]
+          notes: "hardcoded JWT signing key"
+        - cwe_id: CWE-798
+          min_severity: high
+          approximate_lines: [7, 8]
+          notes: "hardcoded AWS access key and secret key"
+        - cwe_id: CWE-798
+          min_severity: high
+          approximate_lines: [29]
+          notes: "credentials embedded in database URL"
 
-  04_hardcoded_credentials.py:
-    expected_findings:
-      - cwe_id: CWE-798
-        min_severity: high
-        approximate_lines: [18]
-        notes: "hardcoded database password"
-      - cwe_id: CWE-798
-        min_severity: high
-        approximate_lines: [19]
-        notes: "hardcoded API token (payment service)"
-      - cwe_id: CWE-798
-        min_severity: high
-        approximate_lines: [20]
-        notes: "hardcoded JWT signing key"
-      - cwe_id: CWE-798
-        min_severity: high
-        approximate_lines: [21, 22]
-        notes: "hardcoded AWS access key and secret key"
-      - cwe_id: CWE-798
-        min_severity: high
-        approximate_lines: [44, 46]
-        notes: "credentials embedded in database URL"
+    05_weak_crypto.py:
+      expected_findings:
+        - cwe_id: CWE-916
+          min_severity: high
+          approximate_lines: [7]
+          notes: "MD5 for password hashing (CWE-916, not CWE-327)"
+        - cwe_id: CWE-916
+          min_severity: high
+          approximate_lines: [11]
+          notes: "SHA-1 for password hashing (CWE-916, not CWE-327)"
+        - cwe_id: CWE-327
+          min_severity: high
+          approximate_lines: [15, 16]
+          notes: "AES-ECB mode"
+        - cwe_id: CWE-326
+          min_severity: high
+          approximate_lines: [20]
+          notes: "DES (56-bit key)"
+        - cwe_id: CWE-329
+          min_severity: medium
+          approximate_lines: [20]
+          notes: "hardcoded IV in DES CBC mode"
+        - cwe_id: CWE-329
+          min_severity: medium
+          approximate_lines: [24, 28]
+          notes: "fixed all-zero IV in AES CBC mode"
 
-  05_weak_crypto.py:
-    expected_findings:
-      - cwe_id: CWE-916
-        min_severity: high
-        approximate_lines: [22, 23]
-        notes: "MD5 for password hashing (CWE-916, not CWE-327)"
-      - cwe_id: CWE-916
-        min_severity: high
-        approximate_lines: [27, 28]
-        notes: "SHA-1 for password hashing (CWE-916, not CWE-327)"
-      - cwe_id: CWE-327
-        min_severity: high
-        approximate_lines: [33, 34]
-        notes: "AES-ECB mode"
-      - cwe_id: CWE-326
-        min_severity: high
-        approximate_lines: [38, 39]
-        notes: "DES (56-bit key)"
-      - cwe_id: CWE-329
-        min_severity: medium
-        approximate_lines: [49, 50]
-        notes: "fixed IV in CBC mode (CWE-329, not CWE-327)"
+    06_ssrf.py:
+      expected_findings:
+        - cwe_id: CWE-918
+          min_severity: high
+          approximate_lines: [10, 11]
+          notes: "fetch user-supplied URL with no allowlist"
+        - cwe_id: CWE-918
+          min_severity: high
+          approximate_lines: [17, 18, 19]
+          notes: "webhook proxy to user-supplied target"
 
-  06_ssrf.py:
-    expected_findings:
-      - cwe_id: CWE-918
-        min_severity: high
-        approximate_lines: [22, 23, 24, 25, 26]
-        notes: "fetch user-supplied URL with no allowlist"
-      - cwe_id: CWE-918
-        min_severity: high
-        approximate_lines: [33, 34, 35, 36]
-        notes: "webhook proxy to user-supplied target"
+    07_insecure_deserialization.py:
+      expected_findings:
+        - cwe_id: CWE-502
+          min_severity: critical
+          approximate_lines: [12]
+          notes: "pickle.loads on attacker data = RCE"
+        - cwe_id: CWE-502
+          min_severity: high
+          approximate_lines: [19]
+          notes: "yaml.load without SafeLoader (high, not critical)"
 
-  07_insecure_deserialization.py:
-    expected_findings:
-      - cwe_id: CWE-502
-        min_severity: critical
-        approximate_lines: [23, 24, 25]
-        notes: "pickle.loads on attacker data = RCE"
-      - cwe_id: CWE-502
-        min_severity: high
-        approximate_lines: [33, 34, 35]
-        notes: "yaml.load without SafeLoader (high, not critical)"
+    08_idor.py:
+      expected_findings:
+        - cwe_id: CWE-639
+          min_severity: high
+          approximate_lines: [9, 10, 11, 12, 13]
+          notes: "missing ownership check on get_invoice"
+        - cwe_id: CWE-285
+          min_severity: high
+          approximate_lines: [18, 19, 20, 21, 22, 23, 24]
+          notes: "missing ownership check on delete_invoice"
 
-  08_idor.py:
-    expected_findings:
-      - cwe_id: CWE-639
-        min_severity: high
-        approximate_lines: [28, 29, 30, 31]
-        notes: "missing ownership check on get_invoice"
-      - cwe_id: CWE-285
-        min_severity: high
-        approximate_lines: [40, 41, 42, 43, 44, 45]
-        notes: "missing ownership check on delete_invoice"
+    09_xxe.py:
+      expected_findings:
+        - cwe_id: CWE-611
+          min_severity: high
+          approximate_lines: [11, 12]
+          notes: "lxml default parser allows external entities"
+        - cwe_id: CWE-611
+          min_severity: medium
+          approximate_lines: [18, 19]
+          notes: "xml.dom.minidom parseString without defusing"
 
-  09_xxe.py:
-    expected_findings:
-      - cwe_id: CWE-611
-        min_severity: high
-        approximate_lines: [25, 26, 27, 28]
-        notes: "lxml default parser allows external entities"
-      - cwe_id: CWE-611
-        min_severity: medium
-        approximate_lines: [35, 36, 37, 38]
-        notes: "xml.dom.minidom parseString without defusing"
+    10_open_redirect.py:
+      expected_findings:
+        - cwe_id: CWE-601
+          min_severity: medium
+          approximate_lines: [9, 10]
+          notes: "login redirect to user-controlled URL"
+        - cwe_id: CWE-601
+          min_severity: medium
+          approximate_lines: [15, 16]
+          notes: "logout redirect to user-controlled URL"
 
-  10_open_redirect.py:
-    expected_findings:
-      - cwe_id: CWE-601
-        min_severity: medium
-        approximate_lines: [23, 24, 25, 26]
-        notes: "login redirect to user-controlled URL"
-      - cwe_id: CWE-601
-        min_severity: medium
-        approximate_lines: [31, 32, 33, 34, 35]
-        notes: "logout redirect to user-controlled URL"
+  javascript:
+    01_sql_injection.js:
+      expected_findings:
+        - cwe_id: CWE-89
+          min_severity: high
+          approximate_lines: [13, 14]
+          notes: "template literal interpolation into raw SQL query"
+        - cwe_id: CWE-89
+          min_severity: high
+          approximate_lines: [24]
+          notes: "string concatenation with LIKE clause"
 
+    02_command_injection.js:
+      expected_findings:
+        - cwe_id: CWE-78
+          min_severity: high
+          approximate_lines: [7, 8]
+          notes: "child_process.exec with unsanitized user input"
+        - cwe_id: CWE-78
+          min_severity: high
+          approximate_lines: [15, 16, 17]
+          notes: "exec with attacker-controlled filename"
+
+    03_prototype_pollution.js:
+      expected_findings:
+        - cwe_id: CWE-1321
+          min_severity: high
+          approximate_lines: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+          notes: "recursive merge without __proto__ filtering (this IS the vulnerability)"
+        - cwe_id: CWE-1321
+          min_severity: high
+          approximate_lines: [20]
+          notes: "merge() called with attacker-controlled req.body enables prototype pollution"
+
+    04_xss.jsx:
+      expected_findings:
+        - cwe_id: CWE-79
+          min_severity: high
+          approximate_lines: [6]
+          notes: "dangerouslySetInnerHTML on user comment body"
+        - cwe_id: CWE-79
+          min_severity: high
+          approximate_lines: [12, 13]
+          notes: "user-controlled name/bio interpolated into HTML"
+        - cwe_id: CWE-79
+          min_severity: high
+          approximate_lines: [21]
+          notes: "search result snippet rendered as HTML"
+
+    05_ssrf.js:
+      expected_findings:
+        - cwe_id: CWE-918
+          min_severity: high
+          approximate_lines: [8, 11]
+          notes: "user-controlled URL passed to axios.get with no validation"
+        - cwe_id: CWE-918
+          min_severity: high
+          approximate_lines: [19, 21]
+          notes: "webhook proxy accepting attacker target_url"
+
+    06_insecure_deserialization.js:
+      expected_findings:
+        - cwe_id: CWE-94
+          min_severity: critical
+          approximate_lines: [8, 10]
+          notes: "vm.runInNewContext is NOT a sandbox, user input = RCE"
+        - cwe_id: CWE-94
+          min_severity: critical
+          approximate_lines: [18, 20]
+          notes: "eval() on user input"
+
+    07_jwt_skip_verification.js:
+      expected_findings:
+        - cwe_id: CWE-347
+          min_severity: high
+          approximate_lines: [7, 10]
+          notes: "jwt.decode() without signature verification on /profile"
+        - cwe_id: CWE-347
+          min_severity: high
+          approximate_lines: [17, 18]
+          notes: "jwt.decode() used for admin role check without verification"
+
+    08_redos.js:
+      expected_findings:
+        - cwe_id: CWE-1333
+          min_severity: medium
+          approximate_lines: [5]
+          notes: "nested quantifiers in EMAIL_REGEX cause catastrophic backtracking"
+        - cwe_id: CWE-1333
+          min_severity: medium
+          approximate_lines: [13]
+          notes: "URL_REGEX has same backtracking issue"
+
+    09_nosql_injection.js:
+      expected_findings:
+        - cwe_id: CWE-943
+          min_severity: high
+          approximate_lines: [13, 14, 15, 16, 17]
+          notes: "MongoDB findOne with raw req.body allows operator injection"
+        - cwe_id: CWE-943
+          min_severity: high
+          approximate_lines: [26, 27]
+          notes: "find() with attacker-controlled name allows $where DoS"
+
+    10_open_redirect.js:
+      expected_findings:
+        - cwe_id: CWE-601
+          min_severity: medium
+          approximate_lines: [5, 6]
+          notes: "login redirect to user-controlled next parameter"
+        - cwe_id: CWE-601
+          min_severity: medium
+          approximate_lines: [10, 11]
+          notes: "logout redirect to user-controlled return_to"
+        - cwe_id: CWE-601
+          min_severity: medium
+          approximate_lines: [15, 16]
+          notes: "OAuth callback redirect to user-controlled redirect_uri"
 
 clean_samples:
+  python:
+    01_parameterized_query.py:
+      expected_findings: []
+      notes: "All queries use parameterized APIs. Any finding is a false positive."
 
-  01_parameterized_query.py:
-    expected_findings: []
-    notes: "All queries use parameterized APIs. Any finding is a false positive."
+    02_bcrypt_password.py:
+      expected_findings: []
+      notes: "All hashing uses bcrypt/argon2/PBKDF2. Any finding is a false positive."
 
-  02_bcrypt_password.py:
-    expected_findings: []
-    notes: "All hashing uses bcrypt/argon2/PBKDF2. Any finding is a false positive."
+    03_safe_subprocess.py:
+      expected_findings: []
+      notes: "All subprocess calls use list args or shlex.quote. Any finding is a false positive."
 
-  03_safe_subprocess.py:
-    expected_findings: []
-    notes: "All subprocess calls use list args or shlex.quote. Any finding is a false positive."
+    04_validated_url_fetch.py:
+      expected_findings: []
+      notes: "URL is validated against allowlist before fetch. Any finding is a false positive."
+  
+  javascript:
+    01_parameterized_query.js:
+      expected_findings: []
+      notes: "All queries use parameterized ? placeholders. Any finding is a false positive."
 
-  04_validated_url_fetch.py:
-    expected_findings: []
-    notes: "URL is validated against allowlist before fetch. Any finding is a false positive."
+    02_execFile_safe.js:
+      expected_findings: []
+      notes: "All subprocess calls use execFile with array args (no shell). Any finding is a false positive."
+
+    03_dompurify_sanitization.jsx:
+      expected_findings: []
+      notes: "All user HTML is sanitized with DOMPurify before rendering. Any finding is a false positive."
+
+    04_validated_url_fetch.js:
+      expected_findings: []
+      notes: "URL is validated against allowlist AND private IP ranges before fetch. Any finding is a false positive."

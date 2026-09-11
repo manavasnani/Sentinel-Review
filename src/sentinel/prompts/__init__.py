@@ -19,13 +19,14 @@ from types import ModuleType
 
 from sentinel.models import Language
 from sentinel.prompts import python as python_module
+from sentinel.prompts import javascript as javascript_module
 
 # Map from Language enum to the corresponding prompt module.
 # Add new entries here as new languages are supported.
 _LANGUAGE_MODULES: dict[Language, ModuleType] = {
     Language.PYTHON: python_module,
-    # Language.JAVASCRIPT: javascript_module,  # Uncomment in Phase 2 item 30
-    # Language.TYPESCRIPT: javascript_module,  # Shares JS prompt
+    Language.JAVASCRIPT: javascript_module,  # Uncomment in Phase 2 item 30
+    Language.TYPESCRIPT: javascript_module,  # Shares JS prompt
 }
 
 
