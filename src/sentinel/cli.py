@@ -194,7 +194,7 @@ def review(
     ] = None,
     directory: Annotated[
         Optional[Path],
-        typer.Option("--dir", "-d", help="Path to a directory; reviews all .py files."),
+        typer.Option("--dir", "-d", help="Path to a directory; reviews all supported source files."),
     ] = None,
     diff: Annotated[
         bool,
@@ -304,10 +304,10 @@ def review(
             sys.exit(_exit_code_for_threshold(result, threshold))
 
         # Directory mode
-        targets = _collect_python_files(directory)
+        targets = _collect_source_files(directory)
         if not targets:
             stderr_console.print(
-                f"[yellow]No .py files found in {directory}.[/yellow]"
+                f"[yellow]No supported source files found in {directory}.[/yellow]"
             )
             raise typer.Exit(code=0)
 
@@ -331,23 +331,31 @@ def review(
         sys.exit(_handle_error(e))
 
 
-def _collect_python_files(directory: Path) -> list[Path]:
+def _collect_source_files(directory: Path) -> list[Path]:
     """
-    Walk a directory and return all .py files, sorted for deterministic order.
+    Walk a directory and return all supported source files, sorted for
+    deterministic order.
 
     Skips common noise directories (.venv, __pycache__, node_modules, .git).
+    Uses the language detection module to determine which file extensions
+    are supported.
     """
     if not directory.exists():
         raise AnalysisError(f"Directory not found: {directory}")
     if not directory.is_dir():
         raise AnalysisError(f"Not a directory: {directory}")
 
+    from sentinel.diff.language_detection import is_supported
+
     skip_dirs = {".venv", "venv", "__pycache__", "node_modules", ".git", ".tox"}
     files: list[Path] = []
-    for path in directory.rglob("*.py"):
+    for path in directory.rglob("*"):
+        if not path.is_file():
+            continue
         if any(part in skip_dirs for part in path.parts):
             continue
-        files.append(path)
+        if is_supported(str(path)):
+            files.append(path)
     return sorted(files)
 
 

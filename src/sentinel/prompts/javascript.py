@@ -416,3 +416,46 @@ this:
 without escaping, this allows XSS. Confirm the implementation of \
 generateReport."
 """
+
+# ---------------------------------------------------------------------------
+# Request formatter
+# ---------------------------------------------------------------------------
+
+def format_review_request(code: str, file_path: str) -> str:
+    """
+    Construct the user message sent to Claude alongside the system prompt.
+
+    The user message contains:
+      1. The few-shot examples (calibration)
+      2. The file path (for finding attribution)
+      3. The code itself, line-numbered for accurate line references.
+    """
+    numbered_code = _add_line_numbers(code)
+    fence = chr(96) * 3
+
+    return f"""\
+{FEW_SHOT_EXAMPLES}
+
+---
+
+Now review the following file. Report any vulnerabilities by calling the \
+`report_security_findings` tool. Use the line numbers shown below for \
+`line_start` and `line_end` in your findings.
+
+File: {file_path}
+
+{fence}
+{numbered_code}
+{fence}
+"""
+
+
+def _add_line_numbers(code: str) -> str:
+    """Prefix each line with its line number for accurate line references."""
+    lines = code.splitlines()
+    if not lines:
+        return ""
+    width = len(str(len(lines)))
+    return "\n".join(
+        f"{i:>{width}}  {line}" for i, line in enumerate(lines, start=1)
+    )
