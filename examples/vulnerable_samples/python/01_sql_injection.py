@@ -1,16 +1,3 @@
-"""
-Vulnerable sample: SQL injection.
-
-Expected finding:
-    - CWE-89 (SQL Injection)
-    - Severity: high
-    - Confidence: high
-    - Location: lines 28-29 (user lookup), lines 41-42 (search)
-
-This is a deliberately vulnerable file for the Sentinel Review test corpus.
-DO NOT use any pattern in this file in production code.
-"""
-
 import sqlite3
 from flask import Flask, request, jsonify
 
@@ -26,7 +13,6 @@ def get_db():
 
 @app.route("/user/<user_id>")
 def get_user(user_id):
-    """Look up a user by ID. VULNERABLE: SQL injection via f-string."""
     conn = get_db()
     cursor = conn.cursor()
     query = f"SELECT id, name, email FROM users WHERE id = {user_id}"
@@ -37,7 +23,6 @@ def get_user(user_id):
 
 @app.route("/search")
 def search_users():
-    """Search users by name. VULNERABLE: SQL injection via string concatenation."""
     name = request.args.get("name", "")
     conn = get_db()
     cursor = conn.cursor()
@@ -48,9 +33,7 @@ def search_users():
 
 @app.route("/health")
 def health():
-    """Health check endpoint. Not vulnerable."""
     return {"status": "ok"}
-
 
 if __name__ == "__main__":
     app.run(debug=True)
