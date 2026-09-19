@@ -226,6 +226,26 @@ class TestAnalyzeDiffFileWithMockedResponse:
         assert result.input_tokens == 5000
         assert result.output_tokens == 800
 
+    @patch("sentinel.analyzer._call_api_and_parse")
+    @patch("sentinel.analyzer._build_client")
+    def test_diff_mode_uses_javascript_prompt_for_js_file(self, mock_client, mock_api):
+        mock_api.return_value = self._make_mock_api_response(findings=[])
+
+        df = DiffFile(
+            file_path="src/app.js",
+            new_content="const x = 1;\n",
+            changed_line_ranges=[(1, 1)],
+            is_new_file=True,
+            language=Language.JAVASCRIPT,
+        )
+        analyze_diff_file(df)
+
+        call_args = mock_api.call_args
+        system_prompt = call_args.kwargs["system_prompt"]
+        # Should use JS prompt, not Python
+        assert "JavaScript or TypeScript" in system_prompt
+        assert "Pull request review mode" in system_prompt
+        
     @patch("sentinel.analyzer._call_api_with_retry")
     @patch("sentinel.analyzer._build_client")
     def test_malformed_finding_skipped_not_crashed(self, mock_client, mock_api):
