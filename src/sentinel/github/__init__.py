@@ -1,0 +1,1 @@
+"""GitHub Action integration for Sentinel Review."""

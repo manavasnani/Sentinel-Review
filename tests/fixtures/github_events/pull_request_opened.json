@@ -1,0 +1,22 @@
+{
+  "action": "opened",
+  "number": 42,
+  "pull_request": {
+    "number": 42,
+    "title": "Add user authentication",
+    "head": {
+      "sha": "abc123def456789",
+      "ref": "feature/auth"
+    },
+    "base": {
+      "sha": "111222333444555",
+      "ref": "main"
+    },
+    "user": {
+      "login": "manavasnani"
+    }
+  },
+  "repository": {
+    "full_name": "manavasnani/Sentinel-Review"
+  }
+}
