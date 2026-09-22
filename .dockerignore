@@ -1,0 +1,41 @@
+# Virtual environments
+.venv/
+venv/
+
+# Git
+.git/
+.github/
+
+# Tests and test data (not needed at runtime)
+tests/
+examples/
+benchmarks/
+scripts/
+
+# Documentation
+docs/
+*.md
+LICENSE
+CONTRIBUTING.md
+
+# Build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files (secrets should come from env vars, not files)
+.env
+.env.*

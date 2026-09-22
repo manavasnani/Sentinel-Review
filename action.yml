@@ -1,0 +1,49 @@
+name: "Sentinel Review"
+description: "AI-powered security code review for pull requests. Detects OWASP Top 10 vulnerabilities in Python and JavaScript using Claude."
+author: "Manav Asnani"
+
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  anthropic_api_key:
+    description: "Anthropic API key for Claude access."
+    required: true
+
+  github_token:
+    description: "GitHub token for posting PR review comments. Defaults to the automatic GITHUB_TOKEN."
+    required: false
+    default: ${{ github.token }}
+
+  model:
+    description: "Claude model to use. Defaults to claude-sonnet-4-6."
+    required: false
+    default: "claude-sonnet-4-6"
+
+  fail_on:
+    description: "Fail the check if any finding meets or exceeds this severity. One of: critical, high, medium, low, info. Leave empty to never fail."
+    required: false
+    default: ""
+
+  log_level:
+    description: "Logging verbosity. One of: DEBUG, INFO, WARNING, ERROR."
+    required: false
+    default: "INFO"
+
+  dry_run:
+    description: "If true, log findings but don't post a review on the PR."
+    required: false
+    default: "false"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+
+  env:
+    ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+    GITHUB_TOKEN: ${{ inputs.github_token }}
+    SENTINEL_MODEL: ${{ inputs.model }}
+    INPUT_FAIL_ON: ${{ inputs.fail_on }}
+    INPUT_LOG_LEVEL: ${{ inputs.log_level }}
+    INPUT_DRY_RUN: ${{ inputs.dry_run }}
