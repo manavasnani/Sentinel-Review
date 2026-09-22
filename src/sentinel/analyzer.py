@@ -182,7 +182,6 @@ def _call_api_with_retry(
             response = client.messages.create(
                 model=config.model,
                 max_tokens=config.max_tokens,
-                temperature=config.temperature,
                 system=system_prompt,
                 tools=[REPORT_FINDINGS_TOOL],
                 tool_choice={"type": "tool", "name": "report_security_findings"},
