@@ -1,92 +1,127 @@
 # Limitations
 
-An honest list of what Sentinel Review can't do, where it struggles, and what you should know before relying on it.
+What Sentinel Review can't do, where it's less reliable, and what to
+be aware of when using it.
 
-## Single-file context only
+## Single-file analysis
 
-The biggest limitation right now. The analyzer sends one file at a time to Claude. It has no visibility into other files in the project. This means it can't:
+Sentinel reviews one file at a time. It cannot trace data flow across
+files. If a request parameter is validated in `middleware.py` and used
+unsafely in `handler.py`, Sentinel sees only `handler.py` and may flag
+it as unsafe even though the validation exists elsewhere.
 
-- Follow a function call from `routes.py` into `utils.py` to see if input gets sanitized there
-- Check if a middleware applies authentication before the vulnerable endpoint is reached
-- Verify whether a database query in `models.py` is only called from a safe context in `views.py`
-- Detect vulnerabilities that span multiple files (e.g., a config file that disables CSRF globally)
+This is the biggest structural limitation. Cross-file data flow analysis
+requires a fundamentally different architecture (AST-based, not
+LLM-based). Tools like CodeQL and Semgrep handle this; Sentinel is
+complementary, not a replacement.
 
-In practice, this causes two problems. First, it can miss vulnerabilities where the dangerous sink is in a different file from the untrusted source. Second, it can false-flag code that looks dangerous in isolation but is actually protected by something in another file (though this hasn't happened in testing so far, probably because the `confidence: low` calibration catches these cases).
+## Non-deterministic output
 
-Phase 3 plans to add multi-file context by pulling imports, called functions, and config files into the prompt alongside the target file. This is the highest-priority improvement.
+LLM output is inherently non-deterministic. Running the same file twice
+may produce slightly different findings: different descriptions, slightly
+different line ranges, occasionally a missed or extra finding.
 
-## Python only (for now)
+Sentinel mitigates this by setting temperature to 0 and using structured
+output (tool use), but true determinism is not achievable with current
+LLM technology.
 
-The system prompt, few-shot examples, and anti-pattern rules are all Python-specific. The prompt mentions `psycopg2`, `subprocess`, `bcrypt`, `Jinja2`, `Flask`, and other Python ecosystem libraries.
+In practice, the core findings (which CWEs are flagged, at what severity)
+are stable across runs. The variation is mostly in the prose (descriptions,
+reasoning) and occasionally in line-range precision.
 
-Claude itself understands most programming languages, so if you point the tool at a JavaScript file it will probably catch some things. But the false positive rate will be higher (no JS-specific anti-patterns) and the CWE taxonomy won't be as precise (no JS-specific few-shot examples).
+## Cost
 
-Adding a new language is mostly a prompt engineering task, not a code change. The analyzer, models, CLI, and formatters are all language-agnostic. You'd need a language-specific prompt with the right safe-pattern rules and few-shot examples, plus a test corpus to benchmark against.
+Each file review costs approximately $0.03-0.06 depending on file size
+and finding count. This adds up:
 
-## Cost at scale
+| Scale | Approximate cost |
+|---|---|
+| 1 file | $0.03-0.06 |
+| 10 files | $0.30-0.60 |
+| 50 files | $1.50-3.00 |
+| 100 files | $3.00-6.00 |
 
-At ~$0.036 per file and ~21 seconds per file, scanning a large codebase gets expensive and slow:
+For large repositories, reviewing every file on every PR is expensive.
+Diff mode helps by reviewing only changed files, but cost is still
+proportional to the number of changed files and their size.
 
-| Project size | Estimated cost | Estimated time |
-|---|---|---|
-| 10 files | $0.36 | ~3.5 min |
-| 50 files | $1.80 | ~17 min |
-| 100 files | $3.60 | ~35 min |
-| 500 files | $18.00 | ~2.9 hours |
-| 1000 files | $36.00 | ~5.8 hours |
+## Language coverage
 
-For comparison, Bandit scans 1000 files in under 10 seconds for free.
+Only Python and JavaScript/TypeScript are supported. Java, Go, Ruby,
+C/C++, and other languages are not covered. Files in unsupported
+languages are silently skipped.
 
-The right approach for large projects isn't to scan everything with the LLM. It's the Phase 3 hybrid pipeline: run Semgrep or Bandit first (free, fast), then use the LLM only on files that Semgrep flags or on diffs in pull requests. This brings the per-PR cost down to a few cents since most PRs touch 5-15 files.
+## CWE taxonomy precision
 
-Phase 2's diff-based scanning also helps. Instead of scanning entire files, you only send changed lines plus surrounding context. This cuts token usage significantly.
+The model sometimes uses parent or sibling CWE IDs instead of the most
+specific child:
 
-## Non-determinism
+| Vulnerability | Ideal CWE | Model's CWE | Notes |
+|---|---|---|---|
+| NoSQL injection (MongoDB) | CWE-943 | CWE-89 | Model treats all injection as SQL injection |
+| ReDoS (regex backtracking) | CWE-1333 | CWE-400 | Uses generic resource consumption parent |
+| JWT verification skipping | CWE-347 | CWE-287 | Tags by impact (auth bypass) not root cause |
 
-Even with `temperature=0`, Claude's output isn't perfectly deterministic. Two runs on the same file will usually produce the same findings, but occasionally a finding will appear in one run and not the other, or the severity/confidence will differ slightly.
+Detection is correct in all three cases. The description and suggested
+fix are accurate. Only the CWE ID metadata is imprecise. This is a
+known limitation of using an LLM for CWE classification: the model's
+training data favors common CWE IDs over rare ones.
 
-For Phase 1 (interactive CLI use), this is fine. For Phase 2 (CI/CD gating), it's a problem because you don't want a PR to pass on one run and fail on a retry. The planned mitigation is a "run twice, only flag findings that appear in both" mode, at the cost of doubling the API spend.
+## False negatives
 
-## No binary or compiled code
+Sentinel does not catch everything. Known blind spots:
 
-The tool only works on source code that can be read as UTF-8 text. It can't analyze compiled binaries, bytecode, minified JavaScript, or obfuscated code. This is inherent to the approach since we're sending code as text to an LLM.
+- **Business logic flaws** that require understanding the application's
+  intended behavior (e.g., "users shouldn't be able to set their own
+  discount percentage")
+- **Race conditions** that depend on timing and concurrency patterns
+  not visible in a single code review
+- **Supply chain vulnerabilities** in dependencies (use `npm audit` or
+  `pip-audit` for this)
+- **Configuration issues** in deployment files (Kubernetes manifests,
+  Terraform, nginx.conf)
+- **Subtle type confusion** in TypeScript where runtime types differ
+  from compile-time types
 
-## No runtime analysis
+## False positives
 
-This is static analysis only. It can't detect vulnerabilities that depend on runtime state, configuration, or environment. Examples:
+False positive rate is 0% across the test corpus (8 clean samples across
+two languages). However, the test corpus is small and deliberately
+constructed. In real-world code, false positives may occur:
 
-- A SQL query that's safe when a certain middleware is enabled but vulnerable when it's not
-- An endpoint that's only reachable through a specific load balancer configuration
-- Race conditions that depend on timing and concurrency patterns
-- Vulnerabilities in dynamically generated code (e.g., `exec()` on code built at runtime from a database)
+- Code that uses a dangerous API but has validation happening in a
+  different file or earlier in the same function outside the visible
+  context
+- Internal-only endpoints that the model rates as externally accessible
+- Test code that intentionally uses unsafe patterns
 
-## Token limits on large files
+## Diff-mode limitations
 
-Claude has a context window limit. Very large files (2000+ lines) may exceed the token budget, especially when combined with the system prompt and few-shot examples. The current implementation doesn't handle this. It just sends the file and hopes it fits.
+In diff mode, Sentinel focuses on changed lines and may miss:
 
-A better approach would be to split large files into logical chunks (by function or class) and analyze each chunk separately. This is a Phase 3 improvement.
+- Pre-existing vulnerabilities in unchanged code that interact with the
+  new changes (mitigated by the 5-line adjacency exception for critical
+  findings)
+- Vulnerabilities introduced by removing security controls (the model
+  is instructed to flag these, but detection quality depends on the
+  clarity of the removal in the diff)
 
-## No incremental analysis
+## Rate limits
 
-Every run re-analyzes the file from scratch. There's no caching or diffing against previous results. If you run the tool on the same unchanged file twice, you pay twice.
+The Anthropic API has rate limits. If you're reviewing many files in
+rapid succession (e.g., a large directory scan), you may hit rate limits.
+Sentinel has built-in retry logic with exponential backoff, but extreme
+volumes (100+ files in one run) may still fail.
 
-Phase 3 plans to add a caching layer keyed on file content hash + prompt version, so unchanged files skip the API call entirely.
+## Context window
 
-## Vulnerability classes not covered
+Very large files (1000+ lines) may approach the model's context window
+limit. Sentinel does not currently split large files or truncate them.
+If a file exceeds the context window, the API call will fail with an
+error.
 
-The prompt is scoped to the OWASP Top 10 and common CWE Top 25 entries. Some vulnerability types are not in scope:
+## Token cost reporting
 
-- Business logic flaws beyond IDOR (e.g., negative quantities in a shopping cart)
-- Denial of service via algorithmic complexity (ReDoS, hash collision attacks)
-- Memory safety issues (buffer overflows, use-after-free) since these don't apply to Python
-- Supply chain vulnerabilities (malicious dependencies)
-- Infrastructure misconfigurations (Dockerfile issues, Terraform, Kubernetes YAML)
-- Mobile-specific vulnerabilities (insecure storage, certificate pinning)
-
-Some of these could be added by extending the prompt. Others (like supply chain analysis) require a fundamentally different approach.
-
-## It's not a replacement for manual review
-
-This tool catches patterns. A skilled AppSec engineer doing a manual review brings context that no tool has: understanding of the business domain, knowledge of the deployment environment, awareness of compensating controls, and judgment about actual risk vs theoretical risk.
-
-Sentinel is best used as a first pass that catches the obvious stuff so human reviewers can focus on the hard stuff. The README and all documentation frame it as "complementary to traditional SAST," not a replacement for human review. Don't change that framing.
+The estimated cost shown in output and PR comments is calculated from
+token counts using published Anthropic pricing. Actual billed cost may
+differ slightly due to rounding, prompt caching, or pricing changes.
