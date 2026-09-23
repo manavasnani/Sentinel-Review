@@ -89,7 +89,11 @@ jobs:
 
 The Action posts inline comments on the vulnerable lines with severity, CWE, description, and a suggested fix:
 
-![PR review comments](assets/demo_pr_review.png)
+![PR review Findings](assets/github_actions_1.png)
+![PR review Inline Comments - 1](assets/github_actions_2.png)
+![PR review Inline Comments - 2](assets/github_actions_3.png)
+![PR review Inline Comments - 3](assets/github_actions_4.png)
+![Merge failed on High Finding](assets/github_actions_5.png)
 
 See [docs/USING_THE_ACTION.md](docs/USING_THE_ACTION.md) for full setup instructions.
 
