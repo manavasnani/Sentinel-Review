@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from pathlib import Path
 
 from sentinel.analyzer import analyze_diff_file
 from sentinel.config import get_config
@@ -102,6 +103,16 @@ def run() -> int:
             logger.info("Posting review with %d inline comments...", len(review_comments))
             post_review(context, results, review_body, review_comments)
             logger.info("Review posted successfully.")
+            
+        # Step 6.5: Write SARIF output if requested
+        sarif_file = os.environ.get("INPUT_SARIF_FILE", "")
+        if sarif_file:
+            from sentinel.sarif.converter import results_to_sarif_json
+            sarif_json = results_to_sarif_json(results)
+            sarif_path = Path(sarif_file)
+            sarif_path.parent.mkdir(parents=True, exist_ok=True)
+            sarif_path.write_text(sarif_json, encoding="utf-8")
+            logger.info("Wrote SARIF output to %s", sarif_path)
 
         # Step 7: Determine exit code based on threshold
         fail_on = os.environ.get("INPUT_FAIL_ON", "").lower()

@@ -39,7 +39,7 @@ from sentinel.diff.parser import parse_diff
 
 app = typer.Typer(
     name="sentinel",
-    help="AI-powered secure code review. Reviews Python files for security "
+    help="AI-powered secure code review. Reviews source files for security "
          "vulnerabilities using Claude.",
     no_args_is_help=True,
     add_completion=False,
@@ -182,6 +182,15 @@ def _handle_error(e: Exception) -> int:
     return 1
 
 
+def _write_sarif(results: list[ReviewResult], sarif_path: Path) -> None:
+    """Write SARIF 2.1.0 output to a file."""
+    from sentinel.sarif.converter import results_to_sarif_json
+    sarif_json = results_to_sarif_json(results)
+    sarif_path.parent.mkdir(parents=True, exist_ok=True)
+    sarif_path.write_text(sarif_json, encoding="utf-8")
+    stderr_console.print(f"[dim]SARIF output written to {sarif_path}[/dim]")
+
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
@@ -207,6 +216,14 @@ def review(
     output: OutputFormat = "pretty",
     model: ModelOverride = None,
     fail_on: SeverityThreshold = None,
+    sarif_output: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--sarif",
+            help="Write results in SARIF 2.1.0 format to this file path. "
+                 "Use with GitHub's code scanning to see findings in the Security tab.",
+        ),
+    ] = None,
     verbose: VerboseFlag = False,
 ) -> None:
     """
@@ -217,6 +234,7 @@ def review(
         sentinel review --dir src/
         sentinel review --file app.py --output json > findings.json
         sentinel review --file app.py --fail-on high
+        sentinel review --dir src/ --sarif results.sarif
         git diff HEAD~1 | sentinel review --diff
         git diff HEAD~1 | sentinel review --diff --fail-on high
     """
@@ -262,6 +280,7 @@ def review(
                 )
 
             aggregated_exit = 0
+            all_results: list[ReviewResult] = []
             for df in diff_files:
                 if output.lower() == "pretty":
                     marker = " [new]" if df.is_new_file else ""
@@ -271,18 +290,22 @@ def review(
                         f"{df.total_changed_lines} changed lines)"
                     )
                 result = analyze_diff_file(df, config=config)
+                all_results.append(result)
                 _emit_result(result, output)
                 if _exit_code_for_threshold(result, threshold) != 0:
                     aggregated_exit = 1
+
+            if sarif_output:
+                _write_sarif(all_results, sarif_output)
 
             sys.exit(aggregated_exit)
 
         except SentinelError as e:
             sys.exit(_handle_error(e))
 
-    # ─────────────────────────────────────────────────
-    # File / directory mode (Phase 1 behavior, unchanged)
-    # ─────────────────────────────────────────────────
+    # -----------------------------------------------------------------------
+    # File / directory mode
+    # -----------------------------------------------------------------------
     if file is None and directory is None:
         stderr_console.print(
             "[red]Specify --file, --dir, or --diff.[/red]\n"
@@ -301,6 +324,8 @@ def review(
         if file is not None:
             result = analyze_file(file, config=config)
             _emit_result(result, output)
+            if sarif_output:
+                _write_sarif([result], sarif_output)
             sys.exit(_exit_code_for_threshold(result, threshold))
 
         # Directory mode
@@ -317,13 +342,18 @@ def review(
             )
 
         aggregated_exit = 0
+        all_results: list[ReviewResult] = []
         for target in targets:
             if output.lower() == "pretty":
                 stderr_console.print(f"\n[bold cyan]→ {target}[/bold cyan]")
             result = analyze_file(target, config=config)
+            all_results.append(result)
             _emit_result(result, output)
             if _exit_code_for_threshold(result, threshold) != 0:
                 aggregated_exit = 1
+
+        if sarif_output:
+            _write_sarif(all_results, sarif_output)
 
         sys.exit(aggregated_exit)
 

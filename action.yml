@@ -35,6 +35,11 @@ inputs:
     description: "If true, log findings but don't post a review on the PR."
     required: false
     default: "false"
+  
+  sarif_file:
+    description: "Path to write SARIF output. If set, results are written in SARIF 2.1.0 format for upload to GitHub's Security tab."
+    required: false
+    default: ""
 
 runs:
   using: "docker"
@@ -47,3 +52,4 @@ runs:
     INPUT_FAIL_ON: ${{ inputs.fail_on }}
     INPUT_LOG_LEVEL: ${{ inputs.log_level }}
     INPUT_DRY_RUN: ${{ inputs.dry_run }}
+    INPUT_SARIF_FILE: ${{ inputs.sarif_file }}
